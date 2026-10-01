@@ -1,7 +1,7 @@
 # WeVocalExtractor
-曲からボーカル（または伴奏）を取り出すライブラリ。ブラウザの中で推論し、音声を外部に送らない。UI を持たず、React などにも依存しない。
+曲からボーカル（または伴奏）を取り出すライブラリ。ブラウザの中で推論し、音声を外部に送らない。
 
-今は [WeVocalSynth](https://github.com/PTOM76/wevocalsynth) の submodule として、追加機能のビルドに使っている。将来は単体のツールとしても公開する。
+<!-- 今は [WeVocalSynth](https://github.com/PTOM76/wevocalsynth) の submodule として、追加機能のビルドに使っている。将来は単体のツールとしても公開する。 -->
 
 ## 使い方
 ```ts
