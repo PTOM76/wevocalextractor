@@ -1,7 +1,7 @@
 # WeVocalExtractor
 曲からボーカル（または伴奏）を取り出すライブラリ。ブラウザの中で推論し、音声を外部に送らない。UI を持たず、React などにも依存しない。
 
-いまは [WeVocalSynth](https://github.com/PTOM76/wevocalsynth) の submodule として、追加機能のビルドに使っている。将来は単体のツールとしても公開する。
+今は [WeVocalSynth](https://github.com/PTOM76/wevocalsynth) の submodule として、追加機能のビルドに使っている。将来は単体のツールとしても公開する。
 
 ## 使い方
 ```ts
@@ -34,6 +34,3 @@ fp16 版は ONNX Runtime Web 1.30 の WebGPU で出力がすべて 0 になる�
 | `src/worker.ts` | 推論の Worker。512 フレームずつ STFT → 推論 → マスク → 逆STFT |
 | `src/stft.ts` | STFT / 逆STFT（後で wevocal-lib の Rust に移す） |
 | `src/types.ts` | 型と Worker とのメッセージ |
-
-## ライセンス
-MIT
