@@ -34,3 +34,8 @@ fp16 版は ONNX Runtime Web 1.30 の WebGPU で出力がすべて 0 になる�
 | `src/worker.ts` | 推論の Worker。512 フレームずつ STFT → 推論 → マスク → 逆STFT |
 | `src/stft.ts` | STFT / 逆STFT（後で wevocal-lib の Rust に移す） |
 | `src/types.ts` | 型と Worker とのメッセージ |
+
+## ドキュメント
+詳しくは [docs/](docs/README.md)。
+- [設計](docs/DESIGN.md): 方針・構成・公開 API・処理の流れ・実行方法
+- [モデル](docs/MODELS.md): Spleeter 2stems の種類・入出力・測った値・今後の候補
