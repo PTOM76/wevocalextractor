@@ -1,9 +1,11 @@
+import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import pkg from './package.json' with { type: 'json' }
 
 // 単体のサイト（app/）のビルド設定。ライブラリ（src/）は React に依存しないまま、app/ から使う
 const root = dirname(fileURLToPath(import.meta.url))
@@ -13,6 +15,20 @@ const root = dirname(fileURLToPath(import.meta.url))
 const sibling = resolve(root, '../pevenmui')
 const pevenmui = process.env.PEVENMUI_PATH ?? (existsSync(resolve(sibling, 'src/index.ts')) ? sibling : resolve(root, 'pevenmui'))
 
+/**
+ * ビルドしたコミットの短いハッシュ。バージョン番号を上げずにデプロイしても、どの版か分かるようにする
+ * （CI では GITHUB_SHA、手元では git から。取れなければ dev）
+ */
+function commitHash(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7)
+  try {
+    return execSync('git rev-parse --short=7 HEAD', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
+const commit = commitHash()
+
 /** OGP に使う配信先の絶対 URL（末尾 /）。CI から SITE_URL で指定する。無ければ公開中の URL */
 const siteUrl = (process.env.SITE_URL ?? 'https://ptom76.github.io/wevocalextractor/').replace(/\/?$/, '/')
 
@@ -20,10 +36,15 @@ export default defineConfig({
   root: resolve(root, 'app'),
   // 配信先のサブパス（GitHub Pages など）は BASE_PATH で指定する
   base: process.env.BASE_PATH ?? '/',
+  // 「このアプリについて」と設定に出すバージョン（package.json の version）とコミット
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __APP_COMMIT__: JSON.stringify(commit) },
   // モデル（scripts/fetch-models.mjs が置く）
   publicDir: resolve(root, 'public'),
   resolve: {
-    alias: { pevenmui: resolve(pevenmui, 'src/index.ts') },
+    alias: [
+      { find: /^pevenmui$/, replacement: resolve(pevenmui, 'src/index.ts') },
+      { find: /^pevenmui\/pwa$/, replacement: resolve(pevenmui, 'src/pwa/index.ts') },
+    ],
     // 外にある pevenmui から読み込む React・MUI も、このアプリと同じものにする（2つになると動かない）
     dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled', '@fortawesome/react-fontawesome'],
   },
@@ -34,6 +55,13 @@ export default defineConfig({
     {
       name: 'site-url',
       transformIndexHtml: (html) => html.replaceAll('%SITE_URL%', siteUrl),
+    },
+    // 更新の通知で「どの版が来たか」を出すため、配信中の版を version.json に書く（オフライン用のキャッシュには入れない）
+    {
+      name: 'version-json',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: pkg.version, commit }) })
+      },
     },
     VitePWA({
       // 新しい版は利用者が「更新」を押したときに切り替える（抽出中に勝手に再読み込みしない。UpdatePrompt 参照）

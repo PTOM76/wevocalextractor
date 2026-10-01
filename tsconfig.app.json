@@ -16,7 +16,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     // 隣の pevenmui（WeVocalSynth の submodule として開発するとき）を先に探し、なければ自分の submodule
-    "paths": { "pevenmui": ["../pevenmui/src/index.ts", "./pevenmui/src/index.ts"] }
+    "paths": {
+      "pevenmui": ["../pevenmui/src/index.ts", "./pevenmui/src/index.ts"],
+      "pevenmui/pwa": ["../pevenmui/src/pwa/index.ts", "./pevenmui/src/pwa/index.ts"]
+    }
   },
   "include": ["app", "src"]
 }

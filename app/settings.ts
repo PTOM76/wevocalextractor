@@ -1,0 +1,45 @@
+import { useState } from 'react'
+import type { LangSetting } from './i18n'
+import type { ModelKind } from './models'
+
+export type ThemeSetting = 'system' | 'light' | 'dark'
+
+/** アプリの設定（localStorage に保存する） */
+export interface Settings {
+  theme: ThemeSetting
+  language: LangSetting
+  model: ModelKind
+  /** GPU（WebGPU）を使ってよいか */
+  gpu: boolean
+  /** 約 11kHz より上を残す（モデルが扱わない帯域） */
+  highBand: boolean
+}
+
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', gpu: true, highBand: false }
+
+const KEY = 'wevocalextractor.settings'
+
+function load(): Settings {
+  try {
+    // 古い設定に無い項目は既定値で埋める
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+  } catch {
+    return DEFAULT_SETTINGS
+  }
+}
+
+/** 設定と、一部を変えて保存する関数 */
+export function useSettings() {
+  const [settings, setSettings] = useState(load)
+  const update = (patch: Partial<Settings>) =>
+    setSettings((s) => {
+      const next = { ...s, ...patch }
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next))
+      } catch {
+        // 保存できなくても、このセッション中は使う
+      }
+      return next
+    })
+  return [settings, update] as const
+}

@@ -28,15 +28,18 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 ### Web ツール
 | ファイル | 内容 |
 | --- | --- |
-| `app/App.tsx` | 画面の組み立て（ファイルの選択・設定・進み具合・結果） |
+| `app/App.tsx` | 画面の組み立て（上部のバーとメニュー、ファイルの選択、進み具合、結果、各ダイアログ）。WeVocalSynth と同じ形 |
+| `app/SettingsDialog.tsx` | 設定画面の中身（全般・ボーカル抽出・データ）。外枠は PevenMUI の SettingsDialog |
+| `app/settings.ts` | 設定（テーマ・言語・モデル・GPU・高音域）。localStorage に保存する |
 | `app/useExtract.ts` | 抽出の流れ。読み込み → モデルの取得 → 準備 → 取り出し（`separateBoth`）→ WAV にする。中止は `dispose` で行う |
 | `app/models.ts` | モデルの種類と取得。取得したものは Cache Storage に保存し、2回目からはダウンロードしない |
 | `app/audio.ts` | 音声ファイルの読み込みと WAV の書き出し（いずれ wevocal-lib の TypeScript 側にまとめる） |
-| `app/i18n.ts` | 画面の文言（日本語・英語。ブラウザの言語で決める） |
+| `app/i18n.ts` | 画面の文言（日本語・英語。設定の「言語」で切り替え、自動ならブラウザの言語） |
 | `scripts/fetch-models.mjs` | 配るモデルを sherpa-onnx の配布物から取得し、`public/models/<種類>/` に置く |
 | `vite.config.ts` | ツールのビルド設定。PevenMUI は隣の `../pevenmui` があればそれを、なければ submodule の `pevenmui/` を使う |
 
-- 画面の部品は [PevenMUI](https://github.com/PTOM76/pevenmui)（MUI をもとにした UI 部品。WeVocalSynth と共通）
+- 画面の部品は [PevenMUI](https://github.com/PTOM76/pevenmui)（MUI をもとにした UI 部品。WeVocalSynth と共通）。上部のバー・設定画面・このアプリについて・ショートカット一覧・更新の通知（`pevenmui/pwa`）もそこから使う
+- PWA（vite-plugin-pwa）。新しい版は「更新」を押したときに切り替える。画面と ONNX Runtime の wasm はオフライン用に保存し、モデルは `app/models.ts` が使った種類だけを保存する
 - モデルは毎回読み込み、終わったら Worker ごと解放する（推論中は数百MB使うため、スマホでメモリを持ち続けない）
 - 配信は GitHub Pages（`.github/workflows/deploy.yml`）。モデルもサイトと一緒に配る
 
