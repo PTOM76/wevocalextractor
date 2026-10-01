@@ -27,9 +27,11 @@
     "wasm": "npm run build:wasm",
 
     // ---- 確認 ----
+    "lint": "npm run lint",
     "test": "cargo test --release --manifest-path dsp/Cargo.toml",
     // コミット前にまとめて通す。書き換えはしない
     "check": [
+        "todo lint",
         "todo test",
         "todo build"
     ],

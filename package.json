@@ -11,6 +11,7 @@
     "fetch-models": "node scripts/fetch-models.mjs",
     "dev": "vite",
     "build": "tsc -p tsconfig.app.json && vite build",
+    "lint": "oxlint app src",
     "preview": "vite preview"
   },
   "peerDependencies": {
@@ -28,6 +29,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
     "onnxruntime-web": "^1.30.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
