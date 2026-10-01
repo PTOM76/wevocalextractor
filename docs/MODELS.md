@@ -12,7 +12,7 @@ WeVocalExtractor で使うモデル（Spleeter 2stems）と、その入出力、
 
 - fp16 / int8 / fp32 は同じモデルの数値の精度（量子化の種類）の違い。int8 が fp16 より大きいのは配布物の作りによる
 - ファイル名は配布物では `vocals.fp16.onnx` などだが、使う側で名前をそろえてよい
-- ライセンス（sherpa-onnx: Apache-2.0、Spleeter の重み: MIT のはず）は、配る前に原文で確かめる
+- ライセンス（sherpa-onnx: Apache-2.0、Spleeter: MIT）
 
 ### 入出力
 | 項目 | 内容 |
