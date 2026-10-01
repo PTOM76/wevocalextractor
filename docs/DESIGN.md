@@ -9,6 +9,9 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 - スマホでも動くことを必須にする。そのため1曲を丸ごとではなく、少しずつ処理する（[処理の流れ](#処理の流れ)）
 
 ## 構成
+ライブラリ（`src/`）と、それを使う Web ツール（`app/`）に分ける。ライブラリは画面を持たず、WeVocalSynth の追加機能など、ほかのアプリからもそのまま使う。
+
+### ライブラリ
 | ファイル | 内容 |
 | --- | --- |
 | `src/index.ts` | 公開 API（`createExtractor`）。モデルのサンプルレート・チャンネル数への変換と戻し |
@@ -18,9 +21,24 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 | `scripts/build-wasm.mjs` | `dsp/` を wasm にビルドして `src/dsp.wasm` にコピーする。`WEVOCAL_LIB_PATH` で手元の wevocal-lib に差し替えられる |
 | `src/types.ts` | 型と、Worker とのメッセージ |
 
-- UI を持たず、React などにも依存しない。受け渡しはチャンネルごとの `Float32Array` とサンプルレートだけにする。将来、単体のツールにしても、ほかのアプリに組み込んでもそのまま使えるようにするため
+- ライブラリは UI を持たず、React などにも依存しない。受け渡しはチャンネルごとの `Float32Array` とサンプルレートだけにする。Web ツール（`app/`）からも、ほかのアプリからも同じように使えるようにするため
 - モデルファイルはリポジトリに含めない。使う側が取得して `ArrayBuffer` で渡す（[MODELS.md](MODELS.md) の配布元から取る）
 - ONNX Runtime Web は `peerDependencies`。使う側がバンドルする
+
+### Web ツール
+| ファイル | 内容 |
+| --- | --- |
+| `app/App.tsx` | 画面の組み立て（ファイルの選択・設定・進み具合・結果） |
+| `app/useExtract.ts` | 抽出の流れ。読み込み → モデルの取得 → 準備 → 取り出し（`separateBoth`）→ WAV にする。中止は `dispose` で行う |
+| `app/models.ts` | モデルの種類と取得。取得したものは Cache Storage に保存し、2回目からはダウンロードしない |
+| `app/audio.ts` | 音声ファイルの読み込みと WAV の書き出し（いずれ wevocal-lib の TypeScript 側にまとめる） |
+| `app/i18n.ts` | 画面の文言（日本語・英語。ブラウザの言語で決める） |
+| `scripts/fetch-models.mjs` | 配るモデルを sherpa-onnx の配布物から取得し、`public/models/<種類>/` に置く |
+| `vite.config.ts` | ツールのビルド設定。PevenMUI は隣の `../pevenmui` があればそれを、なければ submodule の `pevenmui/` を使う |
+
+- 画面の部品は [PevenMUI](https://github.com/PTOM76/pevenmui)（MUI をもとにした UI 部品。WeVocalSynth と共通）
+- モデルは毎回読み込み、終わったら Worker ごと解放する（推論中は数百MB使うため、スマホでメモリを持ち続けない）
+- 配信は GitHub Pages（`.github/workflows/deploy.yml`）。モデルもサイトと一緒に配る
 
 ## 公開 API
 ```ts
@@ -68,5 +86,6 @@ ex.dispose() // Worker を止める（モデルのメモリも解放される）
 ## 今後
 - `separate` に `AbortSignal` を渡せるようにする（今は `dispose` で中断する）
 - Rust に移した STFT の速さを測る（JS のときは処理時間の約4割を占めていた）
-- 単体で試せるデモページと、将来の GUI
+- ツールでの読み込み・WAV の書き出しを wevocal-lib の TypeScript 側に移し、WeVocalSynth と共通にする
+- ツールのオフライン利用（PWA）
 - WASM のマルチスレッドを使うか

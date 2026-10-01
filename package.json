@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "曲からボーカル（または伴奏）を取り出す。ブラウザで動き、音声を外部に送らない",
+  "description": "曲からボーカルと伴奏を取り出す Web ツール兼ライブラリ。ブラウザで動き、音声を外部に送らない",
   "license": "MIT",
   "exports": "./src/index.ts",
   "scripts": {

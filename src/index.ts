@@ -1,5 +1,5 @@
 /**
- * WeVocalExtractor: 曲からボーカル（または伴奏）を取り出す。UI を持たず、React にも依存しない（docs/EXTRACTOR.md）。
+ * WeVocalExtractor: 曲からボーカル（または伴奏）を取り出す。UI を持たず、React にも依存しない（docs/DESIGN.md。画面は app/）。
  * 受け渡しはチャンネルごとの Float32Array とサンプルレートだけ。推論は専用の Worker で行う。
  */
 import type { Backend, HighBand, Stem, WorkerRequest, WorkerResponse } from './types'
