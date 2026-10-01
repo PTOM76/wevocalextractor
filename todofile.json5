@@ -32,5 +32,22 @@
     "check": [
         "todo test",
         "todo build"
+    ],
+
+    // ---- リリース ----
+    // package.json / package-lock.json を更新し、"bump version x.y.z" でコミットして vx.y.z タグを打つ
+    // 作業ツリーがきれいでないと失敗する。最後にコミットとタグを push する
+    "bump": "todo bump:patch",
+    "bump:patch": [
+        "npm version patch -m \"bump version %s\"",
+        "git push --follow-tags"
+    ],
+    "bump:minor": [
+        "npm version minor -m \"bump version %s\"",
+        "git push --follow-tags"
+    ],
+    "bump:major": [
+        "npm version major -m \"bump version %s\"",
+        "git push --follow-tags"
     ]
 }
