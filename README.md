@@ -39,3 +39,6 @@ fp16 版は ONNX Runtime Web 1.30 の WebGPU で出力がすべて 0 になる�
 詳しくは [docs/](docs/README.md)。
 - [設計](docs/DESIGN.md): 方針・構成・公開 API・処理の流れ・実行方法
 - [モデル](docs/MODELS.md): Spleeter 2stems の種類・入出力・測った値・今後の候補
+
+## ライセンス
+MIT。使っている部品とモデルのライセンスは [LICENSE-THIRD-PARTY.md](LICENSE-THIRD-PARTY.md)（全文は [licenses/](licenses/)）。
