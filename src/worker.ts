@@ -46,8 +46,8 @@ async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Ba
   }
 }
 
-/** `ch` は 44.1kHz のステレオ。`stem` の音だけを返す */
-async function separate(id: number, ch: Float32Array[], stem: Stem, highBand: HighBand) {
+/** `ch` は 44.1kHz のステレオ。`stems` の音を、その順に返す（推論は1回で、逆STFT だけ音ごとに行う） */
+async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand: HighBand) {
   if (!sessions || !dsp) throw new Error('not initialized')
   const d = dsp
   // 両端のフレームも窓の重なりが揃うよう、前後に N_FFT ずつ無音を足して処理し、最後に切り取る
@@ -64,7 +64,7 @@ async function separate(id: number, ch: Float32Array[], stem: Stem, highBand: Hi
     return p
   }
   const input = [alloc(len), alloc(len)]
-  const out = [alloc(len), alloc(len)]
+  const outs = stems.map(() => [alloc(len), alloc(len)])
   const wsum = alloc(len)
   const re = [alloc(SPLIT * BINS), alloc(SPLIT * BINS)]
   const im = [alloc(SPLIT * BINS), alloc(SPLIT * BINS)]
@@ -84,19 +84,21 @@ async function separate(id: number, ch: Float32Array[], stem: Stem, highBand: Hi
       const x = new ort.Tensor('float32', view(mag, 2 * block).slice(), [2, 1, SPLIT, MODEL_BINS])
       const v = (await sessions.vocals.run({ x })).y.data as Float32Array
       const a = (await sessions.accompaniment.run({ x })).y.data as Float32Array
-      view(mine, 2 * block).set(stem === 'vocals' ? v : a)
-      view(other, 2 * block).set(stem === 'vocals' ? a : v)
-      for (let c = 0; c < 2; c++) {
-        // 窓の2乗の和は1チャンネル分だけ足す（両チャンネルで同じ）
-        d.synthesize_block(
-          re[c], im[c], mine + c * block * 4, other + c * block * 4, f0, count,
-          highBand === 'edge' ? 1 : 0, out[c], len, c === 0 ? wsum : 0,
-        )
+      for (const [si, stem] of stems.entries()) {
+        view(mine, 2 * block).set(stem === 'vocals' ? v : a)
+        view(other, 2 * block).set(stem === 'vocals' ? a : v)
+        for (let c = 0; c < 2; c++) {
+          // 窓の2乗の和は1つ目の音の1チャンネル分だけ足す（どれも同じ）
+          d.synthesize_block(
+            re[c], im[c], mine + c * block * 4, other + c * block * 4, f0, count,
+            highBand === 'edge' ? 1 : 0, outs[si][c], len, si === 0 && c === 0 ? wsum : 0,
+          )
+        }
       }
       post({ id, progress: Math.min(1, (f0 + count) / frames) })
     }
     const w = view(wsum, len)
-    const result = out.map((p) => {
+    const result = outs.map((out) => out.map((p) => {
       const y = view(p, len)
       const o = new Float32Array(n)
       for (let i = 0; i < n; i++) {
@@ -104,8 +106,8 @@ async function separate(id: number, ch: Float32Array[], stem: Stem, highBand: Hi
         o[i] = s > 1e-8 ? y[i + N_FFT] / s : 0
       }
       return o
-    })
-    post({ id, channels: result }, result.map((c) => c.buffer))
+    }))
+    post({ id, stems: result }, result.flat().map((c) => c.buffer))
   } finally {
     for (const [p, size] of allocs) d.free_f32(p, size)
   }
@@ -118,7 +120,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       await init(req.vocals, req.accompaniment, req.backend)
       post({ id: req.id, ok: true })
     } else {
-      await separate(req.id, req.channels, req.stem, req.highBand)
+      await separate(req.id, req.channels, req.stems, req.highBand)
     }
   } catch (err) {
     post({ id: req.id, error: String(err) })

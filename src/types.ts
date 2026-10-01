@@ -7,10 +7,11 @@ export type HighBand = 'zeros' | 'edge'
 
 export type WorkerRequest =
   | { kind: 'init'; id: number; vocals: ArrayBuffer; accompaniment: ArrayBuffer; backend: Backend }
-  | { kind: 'separate'; id: number; channels: Float32Array[]; stem: Stem; highBand: HighBand }
+  /** `stems` の順に、それぞれの音（ステレオ）を返す。推論は1回で済む */
+  | { kind: 'separate'; id: number; channels: Float32Array[]; stems: Stem[]; highBand: HighBand }
 
 export type WorkerResponse =
   | { id: number; ok: true }
   | { id: number; progress: number }
-  | { id: number; channels: Float32Array[] }
+  | { id: number; stems: Float32Array[][] }
   | { id: number; error: string }

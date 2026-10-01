@@ -25,6 +25,12 @@ export interface SeparateOptions {
 export interface Extractor {
   /** `channels`（`sampleRate` Hz）から `stem` の音を取り出す。結果は入力と同じサンプルレート・チャンネル数・長さ */
   separate(channels: Float32Array[], sampleRate: number, opts: SeparateOptions): Promise<Float32Array[]>
+  /** ボーカルと伴奏の両方を取り出す（推論は1回なので、separate を2回呼ぶより速い） */
+  separateBoth(
+    channels: Float32Array[],
+    sampleRate: number,
+    opts: Omit<SeparateOptions, 'stem'>,
+  ): Promise<{ vocals: Float32Array[]; accompaniment: Float32Array[] }>
   dispose(): void
 }
 
@@ -77,26 +83,40 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     throw e
   }
 
+  /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
+  const run = async (channels: Float32Array[], sampleRate: number, stems: Stem[], o: Omit<SeparateOptions, 'stem'>) => {
+    const n = channels[0].length
+    const input = await convert(channels, sampleRate, MODEL_RATE, 2)
+    // 変換しなかった場合は呼び出し元の配列なので、コピーしてから Worker に移す
+    const owned = input === channels ? input.map((c) => c.slice()) : input
+    const res = await send(
+      { kind: 'separate', id: nextId++, channels: owned, stems, highBand: o.highBand ?? 'zeros' },
+      owned.map((c) => c.buffer),
+      o.onProgress,
+    )
+    if (!('stems' in res)) throw new Error('unexpected response')
+    return Promise.all(
+      res.stems.map(async (st) => {
+        const back = await convert(st, MODEL_RATE, sampleRate, channels.length)
+        // サンプルレートの変換で 1 サンプル程度ずれることがあるので、入力と同じ長さにそろえる
+        return back.map((c) => {
+          if (c.length === n) return c
+          const o2 = new Float32Array(n)
+          o2.set(c.subarray(0, n))
+          return o2
+        })
+      }),
+    )
+  }
+
   return {
     async separate(channels, sampleRate, o) {
-      const n = channels[0].length
-      const input = await convert(channels, sampleRate, MODEL_RATE, 2)
-      // 変換しなかった場合は呼び出し元の配列なので、コピーしてから Worker に移す
-      const owned = input === channels ? input.map((c) => c.slice()) : input
-      const res = await send(
-        { kind: 'separate', id: nextId++, channels: owned, stem: o.stem, highBand: o.highBand ?? 'zeros' },
-        owned.map((c) => c.buffer),
-        o.onProgress,
-      )
-      if (!('channels' in res)) throw new Error('unexpected response')
-      const back = await convert(res.channels, MODEL_RATE, sampleRate, channels.length)
-      // サンプルレートの変換で 1 サンプル程度ずれることがあるので、入力と同じ長さにそろえる
-      return back.map((c) => {
-        if (c.length === n) return c
-        const o2 = new Float32Array(n)
-        o2.set(c.subarray(0, n))
-        return o2
-      })
+      const [one] = await run(channels, sampleRate, [o.stem], o)
+      return one
+    },
+    async separateBoth(channels, sampleRate, o) {
+      const [vocals, accompaniment] = await run(channels, sampleRate, ['vocals', 'accompaniment'], o)
+      return { vocals, accompaniment }
     },
     dispose() {
       worker.terminate()
