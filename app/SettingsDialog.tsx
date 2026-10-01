@@ -2,7 +2,7 @@ import { Box, Button, Typography } from '@mui/material'
 import { Check, Choice, Group, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory } from 'pevenmui'
 import { UpdateSection } from 'pevenmui/pwa'
 import { useT, type LangSetting, type MessageKey } from './i18n'
-import { clearModels, MODELS, type ModelKind } from './models'
+import { clearModels } from './models'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
 
 type Category = 'general' | 'extract' | 'data'
@@ -10,7 +10,7 @@ type Category = 'general' | 'extract' | 'data'
 /** 設定の検索の対象: 分類ごとのグループ名・項目名・説明文の訳文キー。項目を足したらここにも足す */
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
-  extract: ['settings.groupExtract', 'settings.model', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
+  extract: ['settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp'],
 }
 
@@ -103,17 +103,6 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
         ),
         extract: (
           <Group title={t('settings.groupExtract')}>
-            <Row label={t('settings.model')}>
-              <Choice<ModelKind>
-                value={draft.model}
-                onChange={(v) => set({ model: v })}
-                options={[
-                  ['fp16', t('settings.modelLight', { mb: MODELS.fp16.mb })],
-                  ['int8', t('settings.modelStandard', { mb: MODELS.int8.mb })],
-                  ['fp32', t('settings.modelPrecise', { mb: MODELS.fp32.mb })],
-                ]}
-              />
-            </Row>
             <Check checked={draft.gpu} onChange={(v) => set({ gpu: v })} label={t('settings.gpu')} help={t('settings.gpuHelp')} />
             <Check checked={draft.highBand} onChange={(v) => set({ highBand: v })} label={t('settings.highBand')} help={t('settings.highBandHelp')} />
           </Group>

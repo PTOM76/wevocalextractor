@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Box, Button, LinearProgress, Link, Paper, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faDownload, faFileArrowUp, faFileAudio, faFolderOpen } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, enLabels, jaLabels, useFileDrop, type MenuGroup } from 'pevenmui'
+import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
+import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, enLabels, jaLabels, useFilesDrop, useMobileLayout, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, formatBuild } from 'pevenmui/pwa'
 import { AUDIO_ACCEPT, downloadBlob } from './audio'
-import { LangContext, resolveLang, setLang, t } from './i18n'
+import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
+import type { ModelKind } from './models'
+import { QueueList, type Stem } from './QueueList'
 import SettingsDialog from './SettingsDialog'
-import { useSettings } from './settings'
-import { useExtract, type Result, type Stage } from './useExtract'
+import { useSettings, type StemsSetting } from './settings'
+import { useQueue, type Phase, type QueueItem } from './useQueue'
+import { makeZip } from './zip'
 
 const REPOSITORY_URL = 'https://github.com/PTOM76/wevocalextractor'
 const AUTHOR = 'PitaQ'
@@ -18,16 +21,38 @@ const APP_BUILD = formatBuild(__APP_VERSION__, __APP_COMMIT__)
 /** アプリのアイコン（public/icon.svg）。GitHub Pages ではサブパスで配信されるため BASE_URL から組み立てる */
 const AppIcon = ({ size }: { size: number }) => <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" width={size} height={size} style={{ display: 'block' }} />
 
-const stageLabel = (s: Stage) => {
-  const p = Math.round((s.progress ?? 0) * 100)
-  if (s.kind === 'decode') return t('stage.decode')
-  if (s.kind === 'model') return t('stage.model', { p })
-  if (s.kind === 'init') return t('stage.init')
-  return t('stage.separate', { p })
-}
+const MODEL_OPTIONS: [ModelKind, MessageKey][] = [
+  ['fp16', 'opt.modelLight'],
+  ['int8', 'opt.modelStandard'],
+  ['fp32', 'opt.modelPrecise'],
+]
+const STEMS_OPTIONS: [StemsSetting, MessageKey][] = [
+  ['both', 'opt.stemsBoth'],
+  ['vocals', 'opt.stemsVocals'],
+  ['accompaniment', 'opt.stemsAccompaniment'],
+]
+
+const phaseLabel = (p: NonNullable<Phase>) => (p.kind === 'model' ? t('stage.model', { p: Math.round(p.progress * 100) }) : t('stage.init'))
 
 /** 拡張子を除いたファイル名 */
 const baseName = (name: string) => name.replace(/\.[^.]+$/, '')
+const outName = (item: QueueItem, stem: Stem) => `${baseName(item.file.name)}_${stem}.wav`
+
+/** 操作の帯に置く選択欄（ラベル付き） */
+function OptionSelect<T extends string>(p: { label: string; value: T; disabled: boolean; options: [T, MessageKey][]; onChange: (v: T) => void }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography sx={{ fontSize: 13, color: 'text.secondary', whiteSpace: 'nowrap' }}>{p.label}</Typography>
+      <Select size="small" value={p.value} disabled={p.disabled} onChange={(e) => p.onChange(e.target.value as T)} sx={{ fontSize: 13, '& .MuiSelect-select': { py: 0.5 } }}>
+        {p.options.map(([v, k]) => (
+          <MenuItem key={v} value={v} sx={{ fontSize: 13 }}>
+            {t(k)}
+          </MenuItem>
+        ))}
+      </Select>
+    </Box>
+  )
+}
 
 export default function App() {
   const [settings, updateSettings] = useSettings()
@@ -37,35 +62,36 @@ export default function App() {
   // 設定のテーマ（既定 / ライト / ダーク）を反映する
   const { setMode } = useColorScheme()
   useEffect(() => setMode(settings.theme), [settings.theme, setMode])
+  const mobile = useMobileLayout()
 
-  const [file, setFile] = useState<File | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const ex = useExtract()
-  const busy = !!ex.stage
+  const q = useQueue(settings)
+  const hasWaiting = q.items.some((it) => it.status === 'waiting')
+  const done = q.items.filter((it) => it.vocals || it.accompaniment)
 
-  const pick = (f: File | undefined) => {
-    if (!f || busy) return
-    ex.reset()
-    setFile(f)
+  const openFiles = () => inputRef.current?.click()
+  const save = (item: QueueItem, stem: Stem) => {
+    const blob = item[stem]
+    if (blob) downloadBlob(blob, outName(item, stem))
   }
-  const openFile = () => !busy && inputRef.current?.click()
-  const extract = () => file && !busy && void ex.run(file, settings)
-  const save = (stem: keyof Result) => ex.result && file && downloadBlob(ex.result[stem], `${baseName(file.name)}_${stem}.wav`)
+  // 取り出し済みのものを1つの ZIP にまとめて保存する
+  const saveAll = async () => {
+    const files = done.flatMap((it) => (['vocals', 'accompaniment'] as const).flatMap((s) => (it[s] ? [{ name: outName(it, s), blob: it[s] }] : [])))
+    if (files.length) downloadBlob(await makeZip(files), 'wevocalextractor.zip')
+  }
 
-  // ページのどこにドロップしても開く
-  useFileDrop(pick)
-  // Ctrl+O で開く（ダイアログを開いているときは効かせない）
-  const openRef = useRef(openFile)
-  openRef.current = openFile
+  // ページのどこにドロップしても一覧に足す
+  useFilesDrop(q.add)
+  // Ctrl+O で追加（ダイアログを開いているときは効かせない）
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o' && !document.querySelector('[role="dialog"]')) {
         e.preventDefault()
-        openRef.current()
+        inputRef.current?.click()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -76,16 +102,16 @@ export default function App() {
     {
       label: t('menu.file'),
       entries: [
-        { label: t('menu.open'), shortcut: 'Ctrl+O', disabled: busy, onClick: openFile },
+        { label: t('menu.add'), shortcut: 'Ctrl+O', onClick: openFiles },
         { divider: true },
-        { label: t('menu.saveVocals'), disabled: !ex.result, onClick: () => save('vocals') },
-        { label: t('menu.saveAccompaniment'), disabled: !ex.result, onClick: () => save('accompaniment') },
+        { label: t('menu.saveAll'), disabled: !done.length, onClick: () => void saveAll() },
       ],
     },
     {
       label: t('menu.tools'),
       entries: [
-        { label: t('menu.extract'), disabled: !file || busy, onClick: extract },
+        { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.runAll() },
+        { label: t('menu.clear'), disabled: !q.items.length, onClick: q.clear },
         { divider: true },
         { label: t('menu.settings'), onClick: () => setSettingsOpen(true) },
       ],
@@ -102,13 +128,59 @@ export default function App() {
   return (
     <LangContext.Provider value={lang}>
       <PevenLabels.Provider value={lang === 'ja_jp' ? jaLabels : enLabels}>
-        <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+        <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
           <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={menus} />
-          <input ref={inputRef} type="file" accept={AUDIO_ACCEPT} hidden onChange={(e) => pick(e.target.files?.[0])} />
+          <input
+            ref={inputRef}
+            type="file"
+            accept={AUDIO_ACCEPT}
+            multiple
+            hidden
+            onChange={(e) => {
+              q.add(Array.from(e.target.files ?? []))
+              e.target.value = ''
+            }}
+          />
 
-          <Box component="main" sx={{ flex: 1, width: '100%', maxWidth: 720, mx: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {!file ? (
-              // ファイルを開く前の画面（WeVocalSynth の EmptyState と同じ形）
+          {/* 操作の帯: モデル・取り出すものと、一覧への操作 */}
+          <Paper square elevation={0} sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 1, flexWrap: 'wrap', borderBottom: 1, borderColor: 'divider' }}>
+            <OptionSelect label={t('opt.model')} value={settings.model} disabled={q.running} options={MODEL_OPTIONS} onChange={(model) => updateSettings({ model })} />
+            <OptionSelect label={t('opt.stems')} value={settings.stems} disabled={q.running} options={STEMS_OPTIONS} onChange={(stems) => updateSettings({ stems })} />
+            <Box sx={{ display: 'flex', gap: 1, ml: mobile ? 0 : 'auto' }}>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openFiles}>
+                {t('queue.add')}
+              </Button>
+              {q.running ? (
+                <Button size="small" variant="outlined" onClick={q.cancel}>
+                  {t('queue.cancel')}
+                </Button>
+              ) : (
+                <Button size="small" variant="contained" disabled={!hasWaiting} onClick={() => void q.runAll()}>
+                  {t('queue.runAll')}
+                </Button>
+              )}
+              <Button size="small" disabled={!done.length} startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={() => void saveAll()}>
+                {t('queue.saveAll')}
+              </Button>
+            </Box>
+          </Paper>
+          {q.phase && q.phase.kind !== 'separate' && (
+            <Box sx={{ px: 2, pt: 1 }}>
+              <Typography sx={{ fontSize: 12, mb: 0.5 }}>{phaseLabel(q.phase)}</Typography>
+              <LinearProgress variant={q.phase.kind === 'model' ? 'determinate' : 'indeterminate'} value={q.phase.kind === 'model' ? q.phase.progress * 100 : 0} />
+            </Box>
+          )}
+
+          <Box component="main" sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {q.error && (
+              <Alert severity="error" className="selectable">
+                {t('error.failed', { message: q.error })}
+              </Alert>
+            )}
+            {q.items.length ? (
+              <QueueList items={q.items} busy={q.running} onSave={save} onRetry={q.retry} onRemove={q.remove} />
+            ) : (
+              // ファイルを追加する前の画面（WeVocalSynth の EmptyState と同じ形）
               <Stack spacing={2} sx={{ flex: 1, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 <Box sx={{ color: 'text.secondary', fontSize: 40 }}>
                   <FontAwesomeIcon icon={faFileArrowUp} />
@@ -116,44 +188,10 @@ export default function App() {
                 <Typography variant="body2" color="text.secondary">
                   {t('empty.formats')}
                 </Typography>
-                <Button variant="contained" startIcon={<FontAwesomeIcon icon={faFolderOpen} />} onClick={openFile}>
+                <Button variant="contained" startIcon={<FontAwesomeIcon icon={faFolderOpen} />} onClick={openFiles}>
                   {t('empty.choose')}
                 </Button>
               </Stack>
-            ) : (
-              <>
-                <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                  <FontAwesomeIcon icon={faFileAudio} />
-                  <Typography className="selectable" sx={{ fontSize: 14, flex: 1, minWidth: 0, wordBreak: 'break-all' }}>
-                    {file.name}
-                  </Typography>
-                  <Button size="small" disabled={busy} onClick={openFile}>
-                    {t('file.change')}
-                  </Button>
-                </Paper>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Button variant="contained" disabled={busy} onClick={extract}>
-                    {t('extract.run')}
-                  </Button>
-                  {busy && <Button onClick={ex.cancel}>{t('extract.cancel')}</Button>}
-                </Box>
-
-                {ex.stage && (
-                  <Box>
-                    <Typography sx={{ fontSize: 13, mb: 0.5 }}>{stageLabel(ex.stage)}</Typography>
-                    <LinearProgress variant={ex.stage.progress === undefined ? 'indeterminate' : 'determinate'} value={(ex.stage.progress ?? 0) * 100} />
-                  </Box>
-                )}
-
-                {ex.error && (
-                  <Alert severity="error" className="selectable">
-                    {t('error.failed', { message: ex.error })}
-                  </Alert>
-                )}
-
-                {ex.result && <Results result={ex.result} onSave={save} />}
-              </>
             )}
           </Box>
         </Box>
@@ -190,27 +228,5 @@ export default function App() {
         <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} message={toast} />
       </PevenLabels.Provider>
     </LangContext.Provider>
-  )
-}
-
-/** 取り出した2つの音。それぞれ試聴と保存ができる */
-function Results({ result, onSave }: { result: Result; onSave: (stem: keyof Result) => void }) {
-  const urls = useMemo(() => ({ vocals: URL.createObjectURL(result.vocals), accompaniment: URL.createObjectURL(result.accompaniment) }), [result])
-  useEffect(() => () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u)), [urls])
-
-  return (
-    <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {(['vocals', 'accompaniment'] as const).map((stem) => (
-        <Box key={stem}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{t(stem === 'vocals' ? 'stem.vocals' : 'stem.accompaniment')}</Typography>
-            <Button size="small" sx={{ ml: 'auto' }} startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={() => onSave(stem)}>
-              {t('result.download')}
-            </Button>
-          </Box>
-          <audio controls src={urls[stem]} style={{ width: '100%' }} />
-        </Box>
-      ))}
-    </Paper>
   )
 }

@@ -3,6 +3,8 @@ import type { LangSetting } from './i18n'
 import type { ModelKind } from './models'
 
 export type ThemeSetting = 'system' | 'light' | 'dark'
+/** 取り出すもの */
+export type StemsSetting = 'both' | 'vocals' | 'accompaniment'
 
 /** アプリの設定（localStorage に保存する） */
 export interface Settings {
@@ -11,11 +13,12 @@ export interface Settings {
   model: ModelKind
   /** GPU（WebGPU）を使ってよいか */
   gpu: boolean
+  stems: StemsSetting
   /** 約 11kHz より上を残す（モデルが扱わない帯域） */
   highBand: boolean
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', gpu: true, highBand: false }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', gpu: true, highBand: false }
 
 const KEY = 'wevocalextractor.settings'
 
