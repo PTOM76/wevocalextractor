@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Box, Button, IconButton, LinearProgress, Paper, Tooltip, Typography } from '@mui/material'
+import { Box, Button, IconButton, LinearProgress, Paper, Slider, Tooltip, Typography } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faPlay, faStop, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { useT } from './i18n'
@@ -12,12 +12,17 @@ function usePreviewPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const urlRef = useRef<string | null>(null)
   const [playing, setPlaying] = useState<string | null>(null)
+  // 再生位置と長さ（秒）。行の下のスライダーに出す
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
   const stop = () => {
     audioRef.current?.pause()
     if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     audioRef.current = null
     urlRef.current = null
     setPlaying(null)
+    setTime(0)
+    setDuration(0)
   }
   const toggle = (key: string, blob: Blob) => {
     const same = playing === key
@@ -26,14 +31,24 @@ function usePreviewPlayer() {
     urlRef.current = URL.createObjectURL(blob)
     const a = new Audio(urlRef.current)
     a.onended = stop
+    a.ontimeupdate = () => setTime(a.currentTime)
+    a.onloadedmetadata = () => setDuration(a.duration)
     audioRef.current = a
     void a.play()
     setPlaying(key)
   }
+  /** 再生位置を変える（秒） */
+  const seek = (t: number) => {
+    if (!audioRef.current) return
+    audioRef.current.currentTime = t
+    setTime(t)
+  }
   useEffect(() => stop, [])
-  return { playing, toggle }
+  return { playing, time, duration, toggle, seek }
 }
 
+/** 秒を「分:秒」で表す */
+const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
 /** 抽出する曲の一覧。PC は1行に、スマホは折り返して2行にまとめる */
 export function QueueList(p: {
   items: QueueItem[]
@@ -97,6 +112,23 @@ export function QueueList(p: {
               </Tooltip>
             </Box>
           </Box>
+          {/* 試聴中の行には再生位置のスライダーを出す（ドラッグ・クリックで位置を変える） */}
+          {player.playing?.startsWith(`${it.id}-`) && player.duration > 0 && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1 }}>
+              <Slider
+                size="small"
+                min={0}
+                max={player.duration}
+                step={0.01}
+                value={player.time}
+                onChange={(_, v) => player.seek(v as number)}
+                aria-label={t('item.position')}
+              />
+              <Typography sx={{ fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                {formatTime(player.time)} / {formatTime(player.duration)}
+              </Typography>
+            </Box>
+          )}
           {it.status === 'running' && <LinearProgress variant="determinate" value={it.progress * 100} sx={{ mt: 0.5 }} />}
         </Box>
       ))}
