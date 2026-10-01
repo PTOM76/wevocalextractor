@@ -100,6 +100,8 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     },
     dispose() {
       worker.terminate()
+      // 処理中の separate は待ち続けないよう失敗させる（中断に使える）
+      pending.forEach((p) => p.reject(new DOMException('disposed', 'AbortError')))
       pending.clear()
     },
   }
