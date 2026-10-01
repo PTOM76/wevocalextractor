@@ -113,9 +113,6 @@ export default function App() {
                 <Box sx={{ color: 'text.secondary', fontSize: 40 }}>
                   <FontAwesomeIcon icon={faFileArrowUp} />
                 </Box>
-                <Typography className="selectable" variant="body2" color="text.secondary">
-                  {t('app.lead')}
-                </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {t('empty.formats')}
                 </Typography>
@@ -140,7 +137,6 @@ export default function App() {
                     {t('extract.run')}
                   </Button>
                   {busy && <Button onClick={ex.cancel}>{t('extract.cancel')}</Button>}
-                  <Typography sx={{ fontSize: 12, color: 'text.secondary', ml: 'auto' }}>{t('extract.note')}</Typography>
                 </Box>
 
                 {ex.stage && (
