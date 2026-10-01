@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
@@ -14,6 +15,10 @@ const root = dirname(fileURLToPath(import.meta.url))
 // PEVENMUI_PATH を指定するか、WeVocalSynth の submodule として隣に pevenmui があればそちらを使う（両方を直しながら開発できるように）
 const sibling = resolve(root, '../pevenmui')
 const pevenmui = process.env.PEVENMUI_PATH ?? (existsSync(resolve(sibling, 'src/index.ts')) ? sibling : resolve(root, 'pevenmui'))
+
+// 開発サーバーで、依存パッケージのファイル（onnxruntime-web の wasm・フォントなど）を配れるようにする。
+// WeVocalSynth の submodule として開発するときは、依存は親の node_modules にあるので、実際に見つかった node_modules を許可する
+const nodeModules = resolve(dirname(createRequire(import.meta.url).resolve('onnxruntime-web')), '../..')
 
 /**
  * ビルドしたコミットの短いハッシュ。バージョン番号を上げずにデプロイしても、どの版か分かるようにする
@@ -48,7 +53,10 @@ export default defineConfig({
     // 外にある pevenmui から読み込む React・MUI も、このアプリと同じものにする（2つになると動かない）
     dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled', '@fortawesome/react-fontawesome'],
   },
-  server: { fs: { allow: [root, pevenmui] } },
+  server: { fs: { allow: [root, pevenmui, nodeModules] } },
+  // 開発サーバーで onnxruntime-web を事前バンドルすると、隣にあるはずの wasm の場所がずれ、
+  // 代わりに index.html が返って読み込みに失敗する（expected magic word 00 61 73 6d）。そのまま読み込ませる
+  optimizeDeps: { exclude: ['onnxruntime-web'] },
   plugins: [
     react(),
     // OGP のメタタグは絶対 URL が要るので、index.html の %SITE_URL% を置き換える
