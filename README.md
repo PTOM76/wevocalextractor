@@ -1,7 +1,5 @@
 # WeVocalExtractor
-曲からボーカル（または伴奏）を取り出すライブラリ。ブラウザの中で推論し、音声を外部に送らない。
-
-<!-- 今は [WeVocalSynth](https://github.com/PTOM76/wevocalsynth) の submodule として、追加機能のビルドに使っている。将来は単体のツールとしても公開する。 -->
+曲からボーカル（または伴奏）を取り出すライブラリ。ブラウザの中で推論し、音声を外部に送らない。>
 
 ## 使い方
 ```ts
@@ -15,6 +13,20 @@ ex.dispose()
 
 - 入出力はチャンネルごとの `Float32Array` とサンプルレート。結果は入力と同じサンプルレート・チャンネル数・長さ
 - 推論は専用の Worker で行う。モデルのサンプルレート（44.1kHz）・ステレオへの変換と戻しは `OfflineAudioContext` で行う
+
+## サイト
+`app/` は、このライブラリを使った単体のサイト（React と [PevenMUI](https://github.com/PTOM76/pevenmui)）。ライブラリ（`src/`）は React に依存しないまま。
+
+```sh
+todo setup   # pevenmui の取得・npm install・モデルを public/models/ に置く（初回だけ）
+todo dev
+```
+
+使えるコマンドは [todofile.json5](todofile.json5)。
+
+### WeVocalSynth の submodule として開発するとき
+隣にある `../pevenmui`（WeVocalSynth の submodule）を優先して使う（`vite.config.ts`、`tsconfig.app.json`）。
+同じものが2か所に見えて違う方を直さないよう、こちらの `pevenmui/` は取り出さずに隠しておく（`todo setup:nested`。中身は `git submodule deinit` と `git sparse-checkout`）。
 
 ## モデル
 Spleeter 2stems を [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases/tag/source-separation-models) が ONNX に変換したもの（fp16 / int8 / fp32）。ボーカル用と伴奏用の2つを使う。

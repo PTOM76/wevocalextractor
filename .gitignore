@@ -1,0 +1,7 @@
+node_modules
+dist
+dsp/target
+
+# モデル（npm run fetch-models で取得する）
+public/models
+.cache
