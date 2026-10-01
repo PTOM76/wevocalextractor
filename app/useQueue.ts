@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createExtractor, type Backend, type Extractor } from '../src/index'
-import { decodeFile, encodeWav } from './audio'
+import { EXPORT_EXT, MP3_SAMPLE_RATES, OPUS_SAMPLE_RATE, decodeFile, exportAudio, type Clip } from 'wevocal-lib'
 import { hasWebGpu, loadModels, MODELS } from './models'
 import type { Settings } from './settings'
 
@@ -11,11 +11,13 @@ export interface QueueItem {
   id: number
   file: File
   status: ItemStatus
-  /** 取り出し中の進み具合（0〜1） */
+  /** 抽出中の進み具合（0〜1） */
   progress: number
-  /** 取り出した音（設定で選んだものだけ） */
+  /** 抽出した音（設定で選んだものだけ） */
   vocals?: Blob
   accompaniment?: Blob
+  /** 書き出した形式の拡張子（.wav など） */
+  ext?: string
   error?: string
 }
 
@@ -24,8 +26,15 @@ export type Phase = { kind: 'model'; progress: number } | { kind: 'init' } | { k
 
 let nextId = 1
 
+/** 書き出すサンプルレート。WAV は元のまま、MP3 は扱える中で一番近いもの、Opus は 48kHz */
+function outputRate(format: Settings['format'], rate: number) {
+  if (format === 'opus') return OPUS_SAMPLE_RATE
+  if (format === 'mp3') return MP3_SAMPLE_RATES.reduce((a, b) => (Math.abs(b - rate) < Math.abs(a - rate) ? b : a))
+  return rate
+}
+
 /**
- * 複数の曲を1曲ずつ順に取り出す。モデルは最初に1回読み込み、一覧が終わるまで使い回す。
+ * 複数の曲を1曲ずつ順に抽出する。モデルは最初に1回読み込み、一覧が終わるまで使い回す。
  * 終わったら Worker ごと解放する（推論中は数百MB使うため、持ち続けない）
  */
 export function useQueue(settings: Settings) {
@@ -46,7 +55,6 @@ export function useQueue(settings: Settings) {
     setItems((list) => [...list, ...files.map((file): QueueItem => ({ id: nextId++, file, status: 'waiting', progress: 0 }))])
   const remove = (id: number) => setItems((list) => list.filter((it) => it.id !== id))
   const clear = () => setItems((list) => list.filter((it) => it.status === 'running'))
-  const retry = (id: number) => patch(id, { status: 'waiting', progress: 0, error: undefined, vocals: undefined, accompaniment: undefined })
 
   /** モデルを読み込んで Extractor を作る（WebGPU で作れなければ CPU で作り直す） */
   const create = async (signal: AbortSignal): Promise<Extractor> => {
@@ -59,9 +67,12 @@ export function useQueue(settings: Settings) {
     return useGpu ? make('webgpu').catch(() => make('wasm')) : make('wasm')
   }
 
-  /** 待機中の曲をすべて、上から順に取り出す */
-  const runAll = async () => {
-    if (abortRef.current || !itemsRef.current.some((it) => it.status === 'waiting')) return
+  /** 待機中の曲を上から順に抽出する。`only` を渡すとその曲だけ（失敗した曲のやり直しにも使う） */
+  const run = async (only?: number) => {
+    if (abortRef.current) return
+    if (only === undefined && !itemsRef.current.some((it) => it.status === 'waiting')) return
+    // その曲だけのときは、状態によらず1回だけ抽出する
+    let onlyLeft = only !== undefined
     const ac = new AbortController()
     abortRef.current = ac
     setRunning(true)
@@ -75,22 +86,28 @@ export function useQueue(settings: Settings) {
       const highBand = settings.highBand ? 'edge' : 'zeros'
       for (;;) {
         // 途中で足された曲も拾うため、毎回一覧から次を探す
-        const item = itemsRef.current.find((it) => it.status === 'waiting')
+        const item =
+          only === undefined ? itemsRef.current.find((it) => it.status === 'waiting') : onlyLeft ? itemsRef.current.find((it) => it.id === only) : undefined
+        onlyLeft = false
         if (!item || ac.signal.aborted) break
-        patch(item.id, { status: 'running', progress: 0 })
+        patch(item.id, { status: 'running', progress: 0, error: undefined })
         try {
           const clip = await decodeFile(item.file)
           const onProgress = (p: number) => patch(item.id, { progress: p })
-          const wav = (channels: Float32Array[]) => encodeWav({ sampleRate: clip.sampleRate, channels })
+          const encode = (channels: Float32Array[]) => {
+            const c: Clip = { sampleRate: clip.sampleRate, channels }
+            return exportAudio(c, { format: settings.format, wavFormat: settings.wavFormat, kbps: settings.kbps, sampleRate: outputRate(settings.format, clip.sampleRate), mono: false, range: null })
+          }
+          const ext = EXPORT_EXT[settings.format]
           if (settings.stems === 'both') {
             const r = await ex.separateBoth(clip.channels, clip.sampleRate, { highBand, onProgress })
-            patch(item.id, { status: 'done', vocals: wav(r.vocals), accompaniment: wav(r.accompaniment) })
+            patch(item.id, { status: 'done', ext, vocals: await encode(r.vocals), accompaniment: await encode(r.accompaniment) })
           } else {
             const r = await ex.separate(clip.channels, clip.sampleRate, { stem: settings.stems, highBand, onProgress })
-            patch(item.id, { status: 'done', [settings.stems]: wav(r) })
+            patch(item.id, { status: 'done', ext, [settings.stems]: await encode(r) })
           }
         } catch (e) {
-          // 中止したときは待機中に戻す（もう一度「すべて取り出す」で続きから）
+          // 中止したときは待機中に戻す（もう一度「すべて抽出する」で続きから）
           if (ac.signal.aborted) patch(item.id, { status: 'waiting', progress: 0 })
           else patch(item.id, { status: 'error', error: e instanceof Error ? e.message : String(e) })
         }
@@ -109,5 +126,5 @@ export function useQueue(settings: Settings) {
 
   const cancel = () => abortRef.current?.abort()
 
-  return { items, phase, error, running, add, remove, clear, retry, runAll, cancel }
+  return { items, phase, error, running, add, remove, clear, run, cancel }
 }

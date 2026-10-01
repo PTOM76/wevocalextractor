@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
 import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, enLabels, jaLabels, useFilesDrop, useMobileLayout, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, formatBuild } from 'pevenmui/pwa'
-import { AUDIO_ACCEPT, downloadBlob } from './audio'
+import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
 import type { ModelKind } from './models'
 import { QueueList, type Stem } from './QueueList'
@@ -26,6 +26,11 @@ const MODEL_OPTIONS: [ModelKind, MessageKey][] = [
   ['int8', 'opt.modelStandard'],
   ['fp32', 'opt.modelPrecise'],
 ]
+const FORMAT_OPTIONS: [ExportFormat, MessageKey][] = [
+  ['wav', 'opt.formatWav'],
+  ['mp3', 'opt.formatMp3'],
+  ['opus', 'opt.formatOpus'],
+]
 const STEMS_OPTIONS: [StemsSetting, MessageKey][] = [
   ['both', 'opt.stemsBoth'],
   ['vocals', 'opt.stemsVocals'],
@@ -36,7 +41,7 @@ const phaseLabel = (p: NonNullable<Phase>) => (p.kind === 'model' ? t('stage.mod
 
 /** 拡張子を除いたファイル名 */
 const baseName = (name: string) => name.replace(/\.[^.]+$/, '')
-const outName = (item: QueueItem, stem: Stem) => `${baseName(item.file.name)}_${stem}.wav`
+const outName = (item: QueueItem, stem: Stem) => `${baseName(item.file.name)}_${stem}${item.ext ?? '.wav'}`
 
 /** 操作の帯に置く選択欄（ラベル付き） */
 function OptionSelect<T extends string>(p: { label: string; value: T; disabled: boolean; options: [T, MessageKey][]; onChange: (v: T) => void }) {
@@ -78,7 +83,7 @@ export default function App() {
     const blob = item[stem]
     if (blob) downloadBlob(blob, outName(item, stem))
   }
-  // 取り出し済みのものを1つの ZIP にまとめて保存する
+  // 抽出済みのものを1つの ZIP にまとめて保存する
   const saveAll = async () => {
     const files = done.flatMap((it) => (['vocals', 'accompaniment'] as const).flatMap((s) => (it[s] ? [{ name: outName(it, s), blob: it[s] }] : [])))
     if (files.length) downloadBlob(await makeZip(files), 'wevocalextractor.zip')
@@ -110,7 +115,7 @@ export default function App() {
     {
       label: t('menu.tools'),
       entries: [
-        { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.runAll() },
+        { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.run() },
         { label: t('menu.clear'), disabled: !q.items.length, onClick: q.clear },
         { divider: true },
         { label: t('menu.settings'), onClick: () => setSettingsOpen(true) },
@@ -142,10 +147,11 @@ export default function App() {
             }}
           />
 
-          {/* 操作の帯: モデル・取り出すものと、一覧への操作 */}
+          {/* 操作の帯: モデル・抽出するもの・形式と、一覧への操作 */}
           <Paper square elevation={0} sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 1, flexWrap: 'wrap', borderBottom: 1, borderColor: 'divider' }}>
             <OptionSelect label={t('opt.model')} value={settings.model} disabled={q.running} options={MODEL_OPTIONS} onChange={(model) => updateSettings({ model })} />
             <OptionSelect label={t('opt.stems')} value={settings.stems} disabled={q.running} options={STEMS_OPTIONS} onChange={(stems) => updateSettings({ stems })} />
+            <OptionSelect label={t('opt.format')} value={settings.format} disabled={q.running} options={FORMAT_OPTIONS} onChange={(format) => updateSettings({ format })} />
             <Box sx={{ display: 'flex', gap: 1, ml: mobile ? 0 : 'auto' }}>
               <Button size="small" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openFiles}>
                 {t('queue.add')}
@@ -155,7 +161,7 @@ export default function App() {
                   {t('queue.cancel')}
                 </Button>
               ) : (
-                <Button size="small" variant="contained" disabled={!hasWaiting} onClick={() => void q.runAll()}>
+                <Button size="small" variant="contained" disabled={!hasWaiting} onClick={() => void q.run()}>
                   {t('queue.runAll')}
                 </Button>
               )}
@@ -178,7 +184,7 @@ export default function App() {
               </Alert>
             )}
             {q.items.length ? (
-              <QueueList items={q.items} busy={q.running} onSave={save} onRetry={q.retry} onRemove={q.remove} />
+              <QueueList items={q.items} busy={q.running} onSave={save} onExtract={(id) => void q.run(id)} onRemove={q.remove} />
             ) : (
               // ファイルを追加する前の画面（WeVocalSynth の EmptyState と同じ形）
               <Stack spacing={2} sx={{ flex: 1, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>

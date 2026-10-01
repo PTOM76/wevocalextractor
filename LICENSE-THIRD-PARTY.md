@@ -18,3 +18,10 @@ WeVocalExtractor のリポジトリには、モデルのファイルは含まな
   - 変換したモデルの配布ページにも、個別のライセンスの記載はない (2026-10-01 時点の確認)
 
 Spleeter の README は、著作権のある音源に使うときは権利者の許可を得るよう求めている。
+
+## lamejs（@breezystack/lamejs）
+- 用途: MP3 の書き出し
+- ライセンス: LGPL-3.0（全文は `node_modules/@breezystack/lamejs/LICENSE`、配布元 https://github.com/nicktindall/lamejs の派生）
+- 組み込み方: MP3 を書き出すときだけ読み込む Worker（`assets/mp3Worker-*.js`）に入れ、Web ツールだけが使う（ライブラリの `src/` は使わない）。このファイルを差し替えれば、改変したエンコーダを使える
+
+MP3 以外（WAV / Opus）の書き出しと、アプリのほかの部分は lamejs に依存しない。

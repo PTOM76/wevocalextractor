@@ -15,7 +15,7 @@ WeVocalExtractorは、Webブラウザ上で曲からボーカルと伴奏を取�
 | モデル | 軽量 / 標準 / 高精度の3種類から選択、初回に取得したモデルを保存して2回目から再利用、保存したモデルの削除 |
 | 実行方法 | GPU（WebGPU）と CPU（WASM）。GPU が使えなければ CPU で処理する |
 | 音質 | 約 11kHz より上の高音域を残すかどうかの選択 |
-| 保存 | 曲ごとの試聴と WAV の保存、すべてを ZIP でまとめて保存 |
+| 保存 | 曲ごとの試聴と保存（WAV / MP3 / Opus）、すべてを ZIP でまとめて保存 |
 | その他 | PC/スマホ対応、オフライン利用（PWA）、ライト/ダーク、日本語/英語 |
 
 ## 技術スタック
@@ -35,7 +35,7 @@ npm run fetch-models
 npm run dev
 ```
 
-`pevenmui/`（UI 部品）は submodule。`--recursive` を付け忘れたら `git submodule update --init` で取得する。
+`pevenmui/`（UI 部品）と `wevocal-lib/`（音声ファイルの読み込み・書き出し）は submodule。`--recursive` を付け忘れたら `git submodule update --init` で取得する。
 
 モデルはリポジトリに含めない。`npm run fetch-models` で配布元から取得し、`public/models/` に置く（取得した配布物は `.cache/` に残る）。
 
@@ -44,8 +44,8 @@ npm run dev
 [Todofile](https://github.com/Pitan76/Todofile)を導入している場合は、クローン後、`todo setup` と `todo dev` で同様のセットアップが可能。
 
 ### WeVocalSynth の submodule として開発するとき
-隣にある `../pevenmui`（WeVocalSynth の submodule）を優先して使う（`vite.config.ts`、`tsconfig.app.json`）。
-同じものが2か所に見えて違う方を直さないよう、こちらの `pevenmui/` は取り出さずに隠しておく（`todo setup:nested`。中身は `git submodule deinit` と `git sparse-checkout`）。
+隣にある `../pevenmui`・`../wevocal-lib`（WeVocalSynth の submodule）を優先して使う（`vite.config.ts`、`tsconfig.app.json`）。
+同じものが2か所に見えて違う方を直さないよう、こちらの `pevenmui/`・`wevocal-lib/` は取り出さずに隠しておく（`todo setup:nested`。中身は `git submodule deinit` と `git sparse-checkout`）。
 
 ## ライブラリとして使う
 ```ts

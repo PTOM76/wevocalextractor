@@ -11,14 +11,24 @@ import pkg from './package.json' with { type: 'json' }
 // 単体のサイト（app/）のビルド設定。ライブラリ（src/）は React に依存しないまま、app/ から使う
 const root = dirname(fileURLToPath(import.meta.url))
 
-// PevenMUI（UI 部品）は submodule の pevenmui/ を使う。
-// PEVENMUI_PATH を指定するか、WeVocalSynth の submodule として隣に pevenmui があればそちらを使う（両方を直しながら開発できるように）
-const sibling = resolve(root, '../pevenmui')
-const pevenmui = process.env.PEVENMUI_PATH ?? (existsSync(resolve(sibling, 'src/index.ts')) ? sibling : resolve(root, 'pevenmui'))
+/**
+ * submodule（`name/`）の場所。`env` を指定するか、WeVocalSynth の submodule として隣にあればそちらを使う
+ * （両方を直しながら開発できるように。こちらの submodule は todo setup:nested で隠す）
+ */
+function submodule(name: string, entry: string, env: string | undefined) {
+  const sibling = resolve(root, '..', name)
+  return env ?? (existsSync(resolve(sibling, entry)) ? sibling : resolve(root, name))
+}
+// PevenMUI（UI 部品）と wevocal-lib（音声ファイルの読み込み・書き出し。TypeScript 側は web/）
+const pevenmui = submodule('pevenmui', 'src/index.ts', process.env.PEVENMUI_PATH)
+const wevocalLib = submodule('wevocal-lib', 'web/src/index.ts', process.env.WEVOCAL_LIB_PATH)
 
 // 開発サーバーで、依存パッケージのファイル（onnxruntime-web の wasm・フォントなど）を配れるようにする。
-// WeVocalSynth の submodule として開発するときは、依存は親の node_modules にあるので、実際に見つかった node_modules を許可する
-const nodeModules = resolve(dirname(createRequire(import.meta.url).resolve('onnxruntime-web')), '../..')
+// 実際に見つかった node_modules と、WeVocalSynth の submodule として開発するときの親の node_modules を許可する
+// （隣の pevenmui・wevocal-lib から読み込むものは、親の node_modules から来る）
+const nodeModules = [resolve(dirname(createRequire(import.meta.url).resolve('onnxruntime-web')), '../..'), resolve(root, '../node_modules')].filter((p) =>
+  existsSync(p),
+)
 
 /**
  * ビルドしたコミットの短いハッシュ。バージョン番号を上げずにデプロイしても、どの版か分かるようにする
@@ -49,11 +59,12 @@ export default defineConfig({
     alias: [
       { find: /^pevenmui$/, replacement: resolve(pevenmui, 'src/index.ts') },
       { find: /^pevenmui\/pwa$/, replacement: resolve(pevenmui, 'src/pwa/index.ts') },
+      { find: /^wevocal-lib$/, replacement: resolve(wevocalLib, 'web/src/index.ts') },
     ],
     // 外にある pevenmui から読み込む React・MUI も、このアプリと同じものにする（2つになると動かない）
     dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled', '@fortawesome/react-fontawesome'],
   },
-  server: { fs: { allow: [root, pevenmui, nodeModules] } },
+  server: { fs: { allow: [root, pevenmui, wevocalLib, ...nodeModules] } },
   // 開発サーバーで onnxruntime-web を事前バンドルすると、隣にあるはずの wasm の場所がずれ、
   // 代わりに index.html が返って読み込みに失敗する（expected magic word 00 61 73 6d）。そのまま読み込ませる
   optimizeDeps: { exclude: ['onnxruntime-web'] },

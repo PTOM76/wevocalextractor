@@ -14,7 +14,8 @@
     // (同じものが2か所に見えて、違う方を直さないように)
     "setup:nested": [
         "git submodule deinit -f pevenmui",
-        "git sparse-checkout set --no-cone \"/*\" \"!/pevenmui/\""
+        "git submodule deinit -f wevocal-lib",
+        "git sparse-checkout set --no-cone \"/*\" \"!/pevenmui/\" \"!/wevocal-lib/\""
     ],
     // モデルを public/models/ に置く (取得した配布物は .cache/ に残る)
     "models": "npm run fetch-models",

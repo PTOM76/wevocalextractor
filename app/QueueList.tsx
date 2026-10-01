@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Box, Button, IconButton, LinearProgress, Paper, Tooltip, Typography } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faDownload, faPlay, faRotateRight, faStop, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faDownload, faPlay, faStop, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { useT } from './i18n'
 import type { QueueItem } from './useQueue'
 
@@ -34,12 +34,13 @@ function usePreviewPlayer() {
   return { playing, toggle }
 }
 
-/** 取り出す曲の一覧。PC は1行に、スマホは折り返して2行にまとめる */
+/** 抽出する曲の一覧。PC は1行に、スマホは折り返して2行にまとめる */
 export function QueueList(p: {
   items: QueueItem[]
   busy: boolean
   onSave: (item: QueueItem, stem: Stem) => void
-  onRetry: (id: number) => void
+  /** その曲だけ抽出する（待機中・失敗した曲） */
+  onExtract: (id: number) => void
   onRemove: (id: number) => void
 }) {
   const t = useT()
@@ -82,12 +83,10 @@ export function QueueList(p: {
                   </Box>
                 )
               })}
-              {it.status === 'error' && (
-                <Tooltip title={t('item.retry')}>
-                  <IconButton size="small" disabled={p.busy} onClick={() => p.onRetry(it.id)}>
-                    <FontAwesomeIcon icon={faRotateRight} fontSize={12} />
-                  </IconButton>
-                </Tooltip>
+              {(it.status === 'waiting' || it.status === 'error') && (
+                <Button size="small" variant="outlined" disabled={p.busy} onClick={() => p.onExtract(it.id)}>
+                  {t('queue.extract')}
+                </Button>
               )}
               <Tooltip title={t('item.remove')}>
                 <span>

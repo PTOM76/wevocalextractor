@@ -1,6 +1,7 @@
 import { Box, Button, Typography } from '@mui/material'
 import { Check, Choice, Group, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory } from 'pevenmui'
 import { UpdateSection } from 'pevenmui/pwa'
+import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
 import { clearModels } from './models'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
@@ -10,7 +11,7 @@ type Category = 'general' | 'extract' | 'data'
 /** 設定の検索の対象: 分類ごとのグループ名・項目名・説明文の訳文キー。項目を足したらここにも足す */
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
-  extract: ['settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
+  extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp'],
 }
 
@@ -102,10 +103,32 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
           </>
         ),
         extract: (
+          <>
+          <Group title={t('settings.groupExport')}>
+            <Row label={t('settings.wavFormat')}>
+              <Choice<WavFormat>
+                value={draft.wavFormat}
+                onChange={(v) => set({ wavFormat: v })}
+                options={[
+                  ['pcm16', '16bit'],
+                  ['pcm24', '24bit'],
+                  ['float32', '32bit float'],
+                ]}
+              />
+            </Row>
+            <Row label={t('settings.kbps')}>
+              <Choice<string>
+                value={String(draft.kbps)}
+                onChange={(v) => set({ kbps: Number(v) })}
+                options={['128', '192', '256', '320'].map((k): [string, string] => [k, `${k} kbps`])}
+              />
+            </Row>
+          </Group>
           <Group title={t('settings.groupExtract')}>
             <Check checked={draft.gpu} onChange={(v) => set({ gpu: v })} label={t('settings.gpu')} help={t('settings.gpuHelp')} />
             <Check checked={draft.highBand} onChange={(v) => set({ highBand: v })} label={t('settings.highBand')} help={t('settings.highBandHelp')} />
           </Group>
+          </>
         ),
         data: (
           <Group title={t('settings.groupData')}>

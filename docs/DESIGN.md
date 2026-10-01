@@ -35,11 +35,11 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 | `app/useQueue.ts` | 一覧の曲を1曲ずつ順に取り出す。モデルは最初に1回読み込み、一覧が終わるまで使い回す。中止は `dispose` で行い、途中の曲は待機中に戻す |
 | `app/zip.ts` | 「すべて保存」用の無圧縮 ZIP |
 | `app/models.ts` | モデルの種類と取得。取得したものは Cache Storage に保存し、2回目からはダウンロードしない |
-| `app/audio.ts` | 音声ファイルの読み込みと WAV の書き出し（いずれ wevocal-lib の TypeScript 側にまとめる） |
 | `app/i18n.ts` | 画面の文言（日本語・英語。設定の「言語」で切り替え、自動ならブラウザの言語） |
 | `scripts/fetch-models.mjs` | 配るモデルを sherpa-onnx の配布物から取得し、`public/models/<種類>/` に置く |
 | `vite.config.ts` | ツールのビルド設定。PevenMUI は隣の `../pevenmui` があればそれを、なければ submodule の `pevenmui/` を使う |
 
+- 音声ファイルの読み込みと書き出し（WAV / MP3 / Opus）は [wevocal-lib](https://github.com/PTOM76/wevocal-lib) の TypeScript 側（`web/`、submodule。WeVocalSynth と共通）
 - 画面の部品は [PevenMUI](https://github.com/PTOM76/pevenmui)（MUI をもとにした UI 部品。WeVocalSynth と共通）。上部のバー・設定画面・このアプリについて・ショートカット一覧・更新の通知（`pevenmui/pwa`）もそこから使う
 - PWA（vite-plugin-pwa）。新しい版は「更新」を押したときに切り替える。画面と ONNX Runtime の wasm はオフライン用に保存し、モデルは `app/models.ts` が使った種類だけを保存する
 - モデルは毎回読み込み、終わったら Worker ごと解放する（推論中は数百MB使うため、スマホでメモリを持ち続けない）

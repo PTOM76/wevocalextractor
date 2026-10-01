@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import type { ExportFormat, WavFormat } from 'wevocal-lib'
 import type { LangSetting } from './i18n'
 import type { ModelKind } from './models'
 
 export type ThemeSetting = 'system' | 'light' | 'dark'
-/** 取り出すもの */
+/** 抽出するもの */
 export type StemsSetting = 'both' | 'vocals' | 'accompaniment'
 
 /** アプリの設定（localStorage に保存する） */
@@ -14,11 +15,15 @@ export interface Settings {
   /** GPU（WebGPU）を使ってよいか */
   gpu: boolean
   stems: StemsSetting
+  /** 書き出す形式と、WAV のサンプル形式・MP3 / Opus のビットレート（kbps） */
+  format: ExportFormat
+  wavFormat: WavFormat
+  kbps: number
   /** 約 11kHz より上を残す（モデルが扱わない帯域） */
   highBand: boolean
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', gpu: true, highBand: false }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false }
 
 const KEY = 'wevocalextractor.settings'
 
