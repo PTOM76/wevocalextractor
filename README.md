@@ -3,6 +3,9 @@ WeVocalExtractorは、Webブラウザ上で曲からボーカルと伴奏を取�
 
 - https://wevocalextractor.pitan76.net/
 
+<img width="1280" alt="image" src="https://github.com/user-attachments/assets/734ba43f-d6e9-489a-ab05-3b069b3be236" />
+
+
 インストール不要で、ブラウザだけでボーカルと伴奏を分けられる。<br />
 音声ファイルはサーバーへ送らず、推論はすべてブラウザ内で行う。
 
