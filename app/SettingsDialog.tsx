@@ -1,18 +1,19 @@
 import { Box, Button, Typography } from '@mui/material'
-import { Check, Choice, Group, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory } from 'pevenmui'
+import { Check, Choice, Group, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory, type WindowMode } from 'pevenmui'
 import { UpdateSection } from 'pevenmui/pwa'
 import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
 import { clearModels } from './models'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
 
-type Category = 'general' | 'extract' | 'data'
+type Category = 'general' | 'extract' | 'data' | 'debug'
 
 /** 設定の検索の対象: 分類ごとのグループ名・項目名・説明文の訳文キー。項目を足したらここにも足す */
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp'],
+  debug: ['settings.groupDebug', 'settings.dialogWindow'],
 }
 
 interface Props {
@@ -133,6 +134,26 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
         data: (
           <Group title={t('settings.groupData')}>
             <DataSection notify={notify} />
+          </Group>
+        ),
+        debug: (
+          <Group title={t('settings.groupDebug')}>
+            <Row label={t('settings.dialogWindow')}>
+              <Choice<WindowMode | 'auto'>
+                value={draft.dialogWindow}
+                onChange={(v) => set({ dialogWindow: v })}
+                options={[
+                  ['auto', t('settings.auto')],
+                  ['dialog', t('settings.windowDialog')],
+                  ['nativeDialog', '<dialog>'],
+                  ['popover', 'Popover API'],
+                  ['popup', t('settings.windowPopup')],
+                  ['tab', t('settings.windowTab')],
+                  ['window', t('settings.windowSub')],
+                  ['pip', 'PiP'],
+                ]}
+              />
+            </Row>
           </Group>
         ),
       })}

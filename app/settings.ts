@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ExportFormat, WavFormat } from 'wevocal-lib'
+import type { WindowMode } from 'pevenmui'
 import type { LangSetting } from './i18n'
 import type { ModelKind } from './models'
 
@@ -21,9 +22,11 @@ export interface Settings {
   kbps: number
   /** 約 11kHz より上を残す（モデルが扱わない帯域） */
   highBand: boolean
+  /** ダイアログの出し方。auto は PWA かつ Chromium 系ならポップアップ、ほかはダイアログ。別窓を開けなければダイアログ */
+  dialogWindow: WindowMode | 'auto'
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto' }
 
 const KEY = 'wevocalextractor.settings'
 
