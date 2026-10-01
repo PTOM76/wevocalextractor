@@ -1,0 +1,3 @@
+# wasm では SIMD（simd128）を有効にする。主要ブラウザは全て対応済み
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

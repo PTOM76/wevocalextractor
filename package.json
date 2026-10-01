@@ -6,6 +6,9 @@
   "description": "曲からボーカル（または伴奏）を取り出す。ブラウザで動き、音声を外部に送らない",
   "license": "MIT",
   "exports": "./src/index.ts",
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs"
+  },
   "peerDependencies": {
     "onnxruntime-web": "^1.30.0"
   }

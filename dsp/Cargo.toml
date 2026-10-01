@@ -1,0 +1,18 @@
+[package]
+name = "wevocalextractor-dsp"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# WeVocalSynth の中でビルドするときは scripts/build-wasm.mjs が手元の wevocal-lib に差し替える
+wevocal-lib = { git = "https://github.com/PTOM76/wevocal-lib.git", branch = "main" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -32,7 +32,7 @@ fp16 版は ONNX Runtime Web 1.30 の WebGPU で出力がすべて 0 になる�
 | --- | --- |
 | `src/index.ts` | 公開 API（`createExtractor`） |
 | `src/worker.ts` | 推論の Worker。512 フレームずつ STFT → 推論 → マスク → 逆STFT |
-| `src/stft.ts` | STFT / 逆STFT（後で wevocal-lib の Rust に移す） |
+| `dsp/` | STFT と、マスクを掛けての逆STFT（Rust → `src/dsp.wasm`。`npm run build:wasm`） |
 | `src/types.ts` | 型と Worker とのメッセージ |
 
 ## ドキュメント

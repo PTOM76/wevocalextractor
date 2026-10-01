@@ -13,7 +13,9 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 | --- | --- |
 | `src/index.ts` | 公開 API（`createExtractor`）。モデルのサンプルレート・チャンネル数への変換と戻し |
 | `src/worker.ts` | 推論の Worker。STFT → 推論 → マスク → 逆STFT |
-| `src/stft.ts` | STFT（短時間フーリエ変換）/ 逆STFT |
+| `src/dsp.wasm` | `dsp/` のビルド成果物（リポジトリに含める。Rust が無くても使えるように） |
+| `dsp/` | STFT（短時間フーリエ変換）と、マスクを掛けての逆STFT（Rust）。STFT 本体は [wevocal-lib](https://github.com/PTOM76/wevocal-lib) のもの。512 フレームのブロック単位で呼ぶ |
+| `scripts/build-wasm.mjs` | `dsp/` を wasm にビルドして `src/dsp.wasm` にコピーする。`WEVOCAL_LIB_PATH` で手元の wevocal-lib に差し替えられる |
 | `src/types.ts` | 型と、Worker とのメッセージ |
 
 - UI を持たず、React などにも依存しない。受け渡しはチャンネルごとの `Float32Array` とサンプルレートだけにする。将来、単体のツールにしても、ほかのアプリに組み込んでもそのまま使えるようにするため
@@ -31,7 +33,7 @@ const vocal = await ex.separate(channels, sampleRate, {
   highBand: 'zeros', // 約 11kHz より上: 'zeros'（消す）| 'edge'（1024 ビン目のマスクで延ばす）
   onProgress: (p) => {}, // 0〜1
 })
-ex.dispose() // Worker を止める（モデルのメモリも解放される）
+ex.dispose() // Worker を止める（モデルのメモリも解放される）。処理中の separate は AbortError で失敗する（中断に使える）
 ```
 
 - 結果は入力と同じサンプルレート・チャンネル数・長さ
@@ -64,7 +66,7 @@ ex.dispose() // Worker を止める（モデルのメモリも解放される）
 `numThreads` は 1 に固定している。
 
 ## 今後
-- STFT / 逆STFT を [wevocal-lib](https://github.com/PTOM76/wevocal-lib)（Rust、SIMD）に移す。JS の今は処理時間の約4割を占める
-- 中断（`AbortSignal`）に対応する
+- `separate` に `AbortSignal` を渡せるようにする（今は `dispose` で中断する）
+- Rust に移した STFT の速さを測る（JS のときは処理時間の約4割を占めていた）
 - 単体で試せるデモページと、将来の GUI
 - WASM のマルチスレッドを使うか
