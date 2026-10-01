@@ -1,7 +1,7 @@
 # WeVocalExtractor
 WeVocalExtractorは、Webブラウザ上で曲からボーカルと伴奏を取り出すための音源分離ツールである。
 
-- https://ptom76.github.io/wevocalextractor/
+- https://wevocalextractor.pitan76.net/
 
 インストール不要で、ブラウザだけでボーカルと伴奏を分けられる。<br />
 音声ファイルはサーバーへ送らず、推論はすべてブラウザ内で行う。
