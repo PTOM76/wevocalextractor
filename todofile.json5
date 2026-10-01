@@ -17,6 +17,8 @@
         "git submodule deinit -f wevocal-lib",
         "git sparse-checkout set --no-cone \"/*\" \"!/pevenmui/\" \"!/wevocal-lib/\""
     ],
+    // 隣（WeVocalSynth 側）の pevenmui・wevocal-lib を更新したら、こちらの submodule の登録もそのコミットに合わせてコミットする
+    "update:nested": "node scripts/update-nested.mjs",
     // モデルを public/models/ に置く (取得した配布物は .cache/ に残る)
     "models": "npm run fetch-models",
 
