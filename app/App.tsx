@@ -6,6 +6,7 @@ import { Check, Choice, Group, NarrowContext, Row, useDesktop } from 'pevenmui'
 import { AUDIO_ACCEPT, downloadBlob } from './audio'
 import { t } from './i18n'
 import { clearModels, MODELS, type ModelKind } from './models'
+import UpdatePrompt from './UpdatePrompt'
 import { useExtract, type Result, type Stage } from './useExtract'
 
 /** 設定の保存先（localStorage） */
@@ -175,6 +176,7 @@ export default function App() {
         </Box>
       </Box>
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} message={toast} />
+      <UpdatePrompt />
     </NarrowContext.Provider>
   )
 }

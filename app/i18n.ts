@@ -29,6 +29,9 @@ const ja = {
   clearModels: '保存したモデルを削除',
   cleared: '保存したモデルを削除しました',
   note: '初回はモデルをダウンロードします（次回からは保存したものを使います）',
+  updateAvailable: '新しい版があります',
+  updateReload: '更新',
+  close: '閉じる',
 }
 
 const en: typeof ja = {
@@ -60,6 +63,9 @@ const en: typeof ja = {
   clearModels: 'Delete saved models',
   cleared: 'Saved models deleted',
   note: 'The model is downloaded the first time and reused afterwards',
+  updateAvailable: 'A new version is available',
+  updateReload: 'Update',
+  close: 'Close',
 }
 
 export type MessageKey = keyof typeof ja

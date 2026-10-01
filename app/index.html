@@ -4,7 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>WeVocalExtractor</title>
-    <meta name="description" content="曲からボーカルと伴奏を取り出す Web アプリ。音声はサーバーへ送らず、処理はすべてブラウザ内で行う。" />
+    <meta name="description" content="インストール不要、ブラウザ上で曲からボーカルと伴奏を取り出せるWebアプリ。音声はサーバーへ送らず、処理はすべてブラウザ内で行う。" />
+    <!-- OGP（Discord などのリンクプレビュー）。%SITE_URL% はビルド時に配信先の絶対 URL へ置き換える（vite.config.ts） -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WeVocalExtractor" />
+    <meta property="og:title" content="WeVocalExtractor" />
+    <meta property="og:description" content="インストール不要、ブラウザ上で曲からボーカルと伴奏を取り出すWebアプリ" />
+    <meta property="og:url" content="%SITE_URL%" />
+    <meta property="og:image" content="%SITE_URL%icon-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <!-- X（Twitter）のカード -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="WeVocalExtractor" />
+    <meta name="twitter:description" content="インストール不要、ブラウザ上で曲からボーカルと伴奏を取り出すWebアプリ" />
+    <meta name="twitter:image" content="%SITE_URL%icon-512.png" />
+    <link rel="icon" href="%BASE_URL%favicon.ico" sizes="48x48" />
+    <link rel="icon" href="%BASE_URL%icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#202124" />
   </head>

@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // 単体のサイト（app/）のビルド設定。ライブラリ（src/）は React に依存しないまま、app/ から使う
 const root = dirname(fileURLToPath(import.meta.url))
@@ -11,6 +12,9 @@ const root = dirname(fileURLToPath(import.meta.url))
 // PEVENMUI_PATH を指定するか、WeVocalSynth の submodule として隣に pevenmui があればそちらを使う（両方を直しながら開発できるように）
 const sibling = resolve(root, '../pevenmui')
 const pevenmui = process.env.PEVENMUI_PATH ?? (existsSync(resolve(sibling, 'src/index.ts')) ? sibling : resolve(root, 'pevenmui'))
+
+/** OGP に使う配信先の絶対 URL（末尾 /）。CI から SITE_URL で指定する。無ければ公開中の URL */
+const siteUrl = (process.env.SITE_URL ?? 'https://ptom76.github.io/wevocalextractor/').replace(/\/?$/, '/')
 
 export default defineConfig({
   root: resolve(root, 'app'),
@@ -24,7 +28,44 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled', '@fortawesome/react-fontawesome'],
   },
   server: { fs: { allow: [root, pevenmui] } },
-  plugins: [react()],
+  plugins: [
+    react(),
+    // OGP のメタタグは絶対 URL が要るので、index.html の %SITE_URL% を置き換える
+    {
+      name: 'site-url',
+      transformIndexHtml: (html) => html.replaceAll('%SITE_URL%', siteUrl),
+    },
+    VitePWA({
+      // 新しい版は利用者が「更新」を押したときに切り替える（抽出中に勝手に再読み込みしない。UpdatePrompt 参照）
+      registerType: 'prompt',
+      includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'WeVocalExtractor',
+        short_name: 'WeVocalExtractor',
+        description: '曲からボーカルと伴奏を取り出す Web ツール',
+        lang: 'ja',
+        display: 'standalone',
+        background_color: '#ffffff',
+        theme_color: '#ffffff',
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
+      },
+      workbox: {
+        inlineWorkboxRuntime: true,
+        // ONNX Runtime の wasm（約 28MB）もオフラインで使えるようにキャッシュする
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2,wasm}'],
+        maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
+        // モデルは全員に配らず、使った種類だけを app/models.ts が自分の保存先（Cache Storage）に入れる
+        globIgnores: ['models/**'],
+        navigateFallbackDenylist: [/\/models\//],
+      },
+    }),
+  ],
   build: {
     outDir: resolve(root, 'dist'),
     emptyOutDir: true,
