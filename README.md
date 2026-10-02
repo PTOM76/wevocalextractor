@@ -76,6 +76,7 @@ ex.dispose()
 ## ドキュメント
 | ドキュメント名 | リンク先 |
 | --- | --- |
+| 使い方（利用者向け） | [docs/MANUAL.md](docs/MANUAL.md) |
 | 設計（方針・構成・公開 API・処理の流れ・実行方法） | [docs/DESIGN.md](docs/DESIGN.md) |
 | モデル（種類・入出力・測った値・今後の候補） | [docs/MODELS.md](docs/MODELS.md) |
 | 決定事項 | [docs/DECISIONS.md](docs/DECISIONS.md) |
