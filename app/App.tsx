@@ -106,6 +106,7 @@ export default function App() {
   const menus: MenuGroup[] = [
     {
       label: t('menu.file'),
+      accessKey: 'F',
       entries: [
         { label: t('menu.add'), shortcut: 'Ctrl+O', onClick: openFiles },
         { divider: true },
@@ -114,6 +115,7 @@ export default function App() {
     },
     {
       label: t('menu.tools'),
+      accessKey: 'T',
       entries: [
         { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.run() },
         { label: t('menu.clear'), disabled: !q.items.length, onClick: q.clear },
@@ -123,6 +125,7 @@ export default function App() {
     },
     {
       label: t('menu.help'),
+      accessKey: 'H',
       entries: [
         { label: t('menu.shortcuts'), onClick: () => setShortcutsOpen(true) },
         { label: t('menu.about'), onClick: () => setAboutOpen(true) },
