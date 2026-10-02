@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, enLabels, jaLabels, useFilesDrop, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
+import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, formatBuild } from 'pevenmui/pwa'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
@@ -147,7 +147,7 @@ export default function App() {
 
   return (
     <LangContext.Provider value={lang}>
-      <PevenLabels.Provider value={lang === 'ja_jp' ? jaLabels : enLabels}>
+      <PevenLabels.Provider value={LABELS[lang]}>
       <WindowModeContext.Provider value={settings.dialogWindow === 'auto' ? autoWindowMode() : settings.dialogWindow}>
         <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
           <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={menus} />

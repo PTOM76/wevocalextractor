@@ -1,4 +1,8 @@
 import { createContext, useContext } from 'react'
+import { detectLang, HTML_LANG, type PevenLang } from 'pevenmui'
+import { ko } from './locales/ko_kr'
+import { zhCn } from './locales/zh_cn'
+import { zhTw } from './locales/zh_tw'
 
 /**
  * 多言語化（WeVocalSynth の src/i18n と同じ作り）。日本語を正とし、英語に欠けたキーがあると型エラーになる
@@ -102,7 +106,7 @@ const ja = {
 }
 
 export type MessageKey = keyof typeof ja
-export type Lang = 'ja_jp' | 'en_us'
+export type Lang = PevenLang
 export type LangSetting = 'auto' | Lang
 
 const en: Record<MessageKey, string> = {
@@ -203,7 +207,7 @@ const en: Record<MessageKey, string> = {
   'shortcuts.menu': 'Move to the menu bar',
 }
 
-const DICTS: Record<Lang, Record<MessageKey, string>> = { ja_jp: ja, en_us: en }
+const DICTS: Record<Lang, Record<MessageKey, string>> = { ja_jp: ja, en_us: en, ko_kr: ko, zh_cn: zhCn, zh_tw: zhTw }
 
 /** 表示中の言語。React の外（エラーメッセージなど）からも `t()` で使う */
 let current: Lang = 'ja_jp'
@@ -211,12 +215,12 @@ let current: Lang = 'ja_jp'
 /** 設定値から実際の言語を決める（auto はブラウザの言語に従う） */
 export function resolveLang(setting: LangSetting): Lang {
   if (setting !== 'auto') return setting
-  return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('ja') ? 'ja_jp' : 'en_us'
+  return detectLang()
 }
 
 export function setLang(lang: Lang) {
   current = lang
-  if (typeof document !== 'undefined') document.documentElement.lang = lang === 'ja_jp' ? 'ja' : 'en'
+  if (typeof document !== 'undefined') document.documentElement.lang = HTML_LANG[lang]
 }
 
 /** 訳文を返す。`{name}` は `vars.name` で置き換える */

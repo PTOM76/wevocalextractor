@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Box, Button, Typography } from '@mui/material'
-import { Check, Choice, Group, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory, type WindowMode } from 'pevenmui'
+import { Check, Choice, Group, LANG_NAMES, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory, type WindowMode } from 'pevenmui'
 import { UpdateSection } from 'pevenmui/pwa'
 import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
@@ -119,11 +119,7 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                 <Choice<LangSetting>
                   value={draft.language}
                   onChange={(v) => set({ language: v })}
-                  options={[
-                    ['auto', t('settings.languageAuto')],
-                    ['ja_jp', '日本語'],
-                    ['en_us', 'English'],
-                  ]}
+                  options={[['auto', t('settings.languageAuto')], ...LANG_NAMES]}
                 />
               </Row>
             </Group>
