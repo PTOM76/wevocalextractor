@@ -26,6 +26,9 @@ interface DspExports {
 
 let sessions: { vocals: ort.InferenceSession; accompaniment: ort.InferenceSession } | null = null
 let dsp: DspExports | null = null
+/** GPU で動かしているときは、出力がおかしければ CPU で作り直すためにモデルを持っておく */
+let models: { vocals: Uint8Array; accompaniment: Uint8Array } | null = null
+let current: Backend = 'wasm'
 
 const post = (res: WorkerResponse, transfer: Transferable[] = []) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(res, transfer)
 
@@ -38,12 +41,49 @@ async function loadDsp(): Promise<DspExports> {
 async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend) {
   // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
   ort.env.wasm.numThreads = 1
-  const opts: ort.InferenceSession.SessionOptions = { executionProviders: [backend] }
   dsp = await loadDsp()
+  models = { vocals: new Uint8Array(vocals), accompaniment: new Uint8Array(accompaniment) }
+  await createSessions(backend)
+}
+
+async function createSessions(backend: Backend) {
+  if (!models) throw new Error('not initialized')
+  const opts: ort.InferenceSession.SessionOptions = { executionProviders: [backend] }
   sessions = {
-    vocals: await ort.InferenceSession.create(new Uint8Array(vocals), opts),
-    accompaniment: await ort.InferenceSession.create(new Uint8Array(accompaniment), opts),
+    vocals: await ort.InferenceSession.create(models.vocals, opts),
+    accompaniment: await ort.InferenceSession.create(models.accompaniment, opts),
   }
+  current = backend
+  // CPU で動かすなら、作り直しに使うことはないので手放す
+  if (backend === 'wasm') models = null
+}
+
+/** 出力が使えるか（端末の GPU によっては、すべて 0 や NaN になることがある） */
+const usable = (y: Float32Array) => {
+  let any = false
+  for (let i = 0; i < y.length; i++) {
+    if (!Number.isFinite(y[i])) return false
+    if (y[i] !== 0) any = true
+  }
+  return any
+}
+
+/** 推論する。GPU で失敗したり出力がおかしければ、CPU で作り直してやり直す */
+async function infer(x: ort.Tensor, check: boolean): Promise<{ v: Float32Array; a: Float32Array }> {
+  const s = sessions!
+  try {
+    const v = (await s.vocals.run({ x })).y.data as Float32Array
+    const a = (await s.accompaniment.run({ x })).y.data as Float32Array
+    if (!check || current !== 'webgpu' || (usable(v) && usable(a))) {
+      // 確かめられたら、作り直し用のモデルは手放す
+      if (check) models = null
+      return { v, a }
+    }
+  } catch (e) {
+    if (current !== 'webgpu') throw e
+  }
+  await createSessions('wasm')
+  return infer(x, false)
 }
 
 /** `ch` は 44.1kHz のステレオ。`stems` の音を、その順に返す（推論は1回で、逆STFT だけ音ごとに行う） */
@@ -82,8 +122,9 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
       view(mag, 2 * block).fill(0)
       for (let c = 0; c < 2; c++) d.analyze_block(input[c], len, f0, count, re[c], im[c], mag + c * block * 4)
       const x = new ort.Tensor('float32', view(mag, 2 * block).slice(), [2, 1, SPLIT, MODEL_BINS])
-      const v = (await sessions.vocals.run({ x })).y.data as Float32Array
-      const a = (await sessions.accompaniment.run({ x })).y.data as Float32Array
+      // 最初のブロックで、GPU の出力が使えるかを確かめる（入力が無音なら確かめられないので次へ持ち越す）
+      const silent = !usable(x.data as Float32Array)
+      const { v, a } = await infer(x, !silent && current === 'webgpu' && models !== null)
       for (const [si, stem] of stems.entries()) {
         view(mine, 2 * block).set(stem === 'vocals' ? v : a)
         view(other, 2 * block).set(stem === 'vocals' ? a : v)
