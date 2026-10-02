@@ -4,6 +4,7 @@ import { UpdateSection } from 'pevenmui/pwa'
 import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
 import { clearModels } from './models'
+import type { KeepMode } from './persist'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
 
 type Category = 'general' | 'extract' | 'data' | 'debug'
@@ -12,7 +13,7 @@ type Category = 'general' | 'extract' | 'data' | 'debug'
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
-  data: ['settings.groupData', 'data.models', 'data.modelsHelp'],
+  data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'settings.keepQueue', 'settings.keepQueueHelp'],
   debug: ['settings.groupDebug', 'settings.dialogWindow'],
 }
 
@@ -133,6 +134,17 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
         ),
         data: (
           <Group title={t('settings.groupData')}>
+            <Row label={t('settings.keepQueue')} help={t('settings.keepQueueHelp')}>
+              <Choice<KeepMode>
+                value={draft.keepQueue}
+                onChange={(v) => set({ keepQueue: v })}
+                options={[
+                  ['undownloaded', t('settings.keepUndownloaded')],
+                  ['all', t('settings.keepAll')],
+                  ['none', t('settings.keepNone')],
+                ]}
+              />
+            </Row>
             <DataSection notify={notify} />
           </Group>
         ),

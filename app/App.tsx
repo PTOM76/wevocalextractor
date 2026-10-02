@@ -79,14 +79,20 @@ export default function App() {
   const done = q.items.filter((it) => it.vocals || it.accompaniment)
 
   const openFiles = () => inputRef.current?.click()
+  // ダウンロードした結果は、次に開いたときには残さない（画面の一覧からは消さない）
   const save = (item: QueueItem, stem: Stem) => {
     const blob = item[stem]
-    if (blob) downloadBlob(blob, outName(item, stem))
+    if (!blob) return
+    downloadBlob(blob, outName(item, stem))
+    q.markSaved(item.id, [stem])
   }
   // 抽出済みのものを1つの ZIP にまとめて保存する
   const saveAll = async () => {
-    const files = done.flatMap((it) => (['vocals', 'accompaniment'] as const).flatMap((s) => (it[s] ? [{ name: outName(it, s), blob: it[s] }] : [])))
-    if (files.length) downloadBlob(await makeZip(files), 'wevocalextractor.zip')
+    const stems = ['vocals', 'accompaniment'] as const
+    const files = done.flatMap((it) => stems.flatMap((s) => (it[s] ? [{ name: outName(it, s), blob: it[s] }] : [])))
+    if (!files.length) return
+    downloadBlob(await makeZip(files), 'wevocalextractor.zip')
+    for (const it of done) q.markSaved(it.id, stems.filter((s) => it[s]))
   }
 
   // ページのどこにドロップしても一覧に足す

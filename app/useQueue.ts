@@ -3,6 +3,7 @@ import { createExtractor, type Backend, type Extractor } from '../src/index'
 import { EXPORT_EXT, MP3_SAMPLE_RATES, OPUS_SAMPLE_RATE, decodeFile, exportAudio, type Clip } from 'wevocal-lib'
 import { hasWebGpu, loadModels, MODELS } from './models'
 import type { Settings } from './settings'
+import { loadQueue, putItem, signature, toStored } from './persist'
 
 export type ItemStatus = 'waiting' | 'running' | 'done' | 'error'
 
@@ -19,6 +20,8 @@ export interface QueueItem {
   /** 書き出した形式の拡張子（.wav など） */
   ext?: string
   error?: string
+  /** ダウンロードした結果（次に開いたときには残さない。画面の一覧からは消さない） */
+  saved?: { vocals?: boolean; accompaniment?: boolean }
 }
 
 /** 一覧全体の段階（モデルの取得・準備は全曲で1回） */
@@ -49,7 +52,43 @@ export function useQueue(settings: Settings) {
   // 画面を離れるときは処理を止める
   useEffect(() => () => abortRef.current?.abort(), [])
 
+  // 曲ごとに、最後に書き込んだ内容（`signature`）
+  const written = useRef(new Map<number, string>())
+  // 前回の一覧を戻す（読み終わる前に足された曲は後ろに並べる）。読み終わるまでは書き込まない
+  const [restored, setRestored] = useState(false)
+  useEffect(() => {
+    void loadQueue().then((saved) => {
+      nextId = Math.max(nextId, ...saved.map((it) => it.id + 1))
+      saved.forEach((it) => written.current.set(it.id, signature(toStored(it, 'all'))))
+      setItems((list) => [...saved, ...list])
+      setRestored(true)
+    })
+  }, [])
+
+  // 一覧が変わったら、変わった曲だけ書き込む（抽出中の進み具合だけの変化では書かない）。一覧から消えた曲は消す
+  useEffect(() => {
+    if (!restored) return
+    const ids = new Set(items.map((it) => it.id))
+    for (const it of items) {
+      const s = toStored(it, settings.keepQueue)
+      const sig = signature(s)
+      if (written.current.get(it.id) === sig) continue
+      written.current.set(it.id, sig)
+      void putItem(it.id, s)
+    }
+    // Map は回している途中で消してもよい
+    for (const id of written.current.keys()) {
+      if (ids.has(id)) continue
+      written.current.delete(id)
+      void putItem(id, null)
+    }
+  }, [items, restored, settings.keepQueue])
+
   const patch = (id: number, p: Partial<QueueItem>) => setItems((list) => list.map((it) => (it.id === id ? { ...it, ...p } : it)))
+
+  /** 結果をダウンロードしたことを覚える（次に開いたときには残さない） */
+  const markSaved = (id: number, stems: ('vocals' | 'accompaniment')[]) =>
+    setItems((list) => list.map((it) => (it.id === id ? { ...it, saved: { ...it.saved, ...Object.fromEntries(stems.map((s) => [s, true])) } } : it)))
 
   const add = (files: File[]) =>
     setItems((list) => [...list, ...files.map((file): QueueItem => ({ id: nextId++, file, status: 'waiting', progress: 0 }))])
@@ -90,7 +129,8 @@ export function useQueue(settings: Settings) {
           only === undefined ? itemsRef.current.find((it) => it.status === 'waiting') : onlyLeft ? itemsRef.current.find((it) => it.id === only) : undefined
         onlyLeft = false
         if (!item || ac.signal.aborted) break
-        patch(item.id, { status: 'running', progress: 0, error: undefined })
+        // 抽出し直すときは、前の結果のダウンロード済みの印も消す
+        patch(item.id, { status: 'running', progress: 0, error: undefined, saved: undefined })
         try {
           const clip = await decodeFile(item.file)
           const onProgress = (p: number) => patch(item.id, { progress: p })
@@ -126,5 +166,5 @@ export function useQueue(settings: Settings) {
 
   const cancel = () => abortRef.current?.abort()
 
-  return { items, phase, error, running, add, remove, clear, run, cancel }
+  return { items, phase, error, running, add, remove, clear, run, cancel, markSaved }
 }

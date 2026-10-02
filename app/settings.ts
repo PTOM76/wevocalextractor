@@ -3,6 +3,7 @@ import type { ExportFormat, WavFormat } from 'wevocal-lib'
 import type { WindowMode } from 'pevenmui'
 import type { LangSetting } from './i18n'
 import type { ModelKind } from './models'
+import type { KeepMode } from './persist'
 
 export type ThemeSetting = 'system' | 'light' | 'dark'
 /** 抽出するもの */
@@ -22,11 +23,13 @@ export interface Settings {
   kbps: number
   /** 約 11kHz より上を残す（モデルが扱わない帯域） */
   highBand: boolean
+  /** 閉じたあとも一覧を残すか（none: 残さない、undownloaded: ダウンロードしていない結果だけ、all: ダウンロードした結果も） */
+  keepQueue: KeepMode
   /** ダイアログの出し方。auto は PWA かつ Chromium 系ならポップアップ、ほかはダイアログ。別窓を開けなければダイアログ */
   dialogWindow: WindowMode | 'auto'
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto' }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded' }
 
 const KEY = 'wevocalextractor.settings'
 
