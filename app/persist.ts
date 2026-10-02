@@ -90,7 +90,13 @@ export async function putItem(id: number, s: StoredItem | null) {
   }
 }
 
-/** 保存した一覧をすべて消す（設定の「データ」から） */
+/** 残した一覧の大きさ（バイト。元のファイルと結果の合計） */
+export async function queueSize(): Promise<number> {
+  const items = await loadQueue()
+  return items.reduce((sum, it) => sum + it.file.size + (it.vocals?.size ?? 0) + (it.accompaniment?.size ?? 0), 0)
+}
+
+/** 保存した一覧をすべて消す（設定の「データ」から。画面の一覧はそのまま） */
 export async function clearQueue() {
   try {
     await tx('readwrite', (s) => s.clear())

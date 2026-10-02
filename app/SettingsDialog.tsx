@@ -1,10 +1,11 @@
+import { useEffect, useState } from 'react'
 import { Box, Button, Typography } from '@mui/material'
 import { Check, Choice, Group, Row, SettingsDialog as PevenSettingsDialog, useConfirm, useHighlighter, type SettingsCategory, type WindowMode } from 'pevenmui'
 import { UpdateSection } from 'pevenmui/pwa'
 import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
 import { clearModels } from './models'
-import type { KeepMode } from './persist'
+import { clearQueue, queueSize, type KeepMode } from './persist'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
 
 type Category = 'general' | 'extract' | 'data' | 'debug'
@@ -13,7 +14,7 @@ type Category = 'general' | 'extract' | 'data' | 'debug'
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
-  data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'settings.keepQueue', 'settings.keepQueueHelp'],
+  data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'data.queue', 'settings.keepQueue', 'settings.keepQueueHelp'],
   debug: ['settings.groupDebug', 'settings.dialogWindow'],
 }
 
@@ -25,17 +26,17 @@ interface Props {
   notify: (message: string) => void
 }
 
-/** 保存したモデルの削除（設定の「データ」） */
-function DataSection({ notify }: { notify: (message: string) => void }) {
+/** 保存したデータの1行（名前・説明と削除ボタン。確かめてから消す） */
+function DataRow(p: { label: string; help: string; confirmMessage: string; onDelete: () => Promise<void>; notify: (message: string) => void }) {
   const t = useT()
   const hit = useHighlighter()
   const { confirm, dialog } = useConfirm()
   return (
     <Box sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 2 }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 13, width: 'fit-content', ...hit(t('data.models'), t('data.modelsHelp')) }}>{t('data.models')}</Typography>
+        <Typography sx={{ fontSize: 13, width: 'fit-content', ...hit(p.label, p.help) }}>{p.label}</Typography>
         <Typography className="selectable" sx={{ fontSize: 11, color: 'text.secondary' }}>
-          {t('data.modelsHelp')}
+          {p.help}
         </Typography>
       </Box>
       <Button
@@ -43,15 +44,39 @@ function DataSection({ notify }: { notify: (message: string) => void }) {
         variant="outlined"
         color="error"
         onClick={async () => {
-          if (!(await confirm({ message: t('data.deleteConfirm'), okLabel: t('data.delete'), danger: true }))) return
-          await clearModels()
-          notify(t('data.deleted'))
+          if (!(await confirm({ message: p.confirmMessage, okLabel: t('data.delete'), danger: true }))) return
+          await p.onDelete()
+          p.notify(t('data.deleted'))
         }}
       >
         {t('data.delete')}
       </Button>
       {dialog}
     </Box>
+  )
+}
+
+/** 保存したデータ（設定の「データ」）: モデルと、閉じたあとも残した一覧 */
+function DataSection({ notify }: { notify: (message: string) => void }) {
+  const t = useT()
+  // 残した一覧の大きさ（開いたとき・消したときに数え直す）
+  const [queueBytes, setQueueBytes] = useState<number | null>(null)
+  useEffect(() => void queueSize().then(setQueueBytes), [])
+  const mb = queueBytes === null ? '…' : (queueBytes / 2 ** 20).toFixed(1)
+  return (
+    <>
+      <DataRow label={t('data.models')} help={t('data.modelsHelp')} confirmMessage={t('data.deleteConfirm')} onDelete={clearModels} notify={notify} />
+      <DataRow
+        label={t('data.queue')}
+        help={t('data.queueHelp', { mb })}
+        confirmMessage={t('data.queueConfirm')}
+        onDelete={async () => {
+          await clearQueue()
+          setQueueBytes(0)
+        }}
+        notify={notify}
+      />
+    </>
   )
 }
 
