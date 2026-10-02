@@ -21,6 +21,8 @@ const INDEX: Record<Category, MessageKey[]> = {
 interface Props {
   open: boolean
   onClose: () => void
+  /** 変わるたびに、別の窓で開いている設定画面を手前に出す */
+  focusSignal?: number
   settings: Settings
   onChange: (patch: Partial<Settings>) => void
   notify: (message: string) => void
@@ -81,7 +83,7 @@ function DataSection({ notify }: { notify: (message: string) => void }) {
 }
 
 /** 設定画面（外枠は PevenMUI の SettingsDialog。WeVocalSynth と同じ形） */
-export default function SettingsDialog({ open, onClose, settings, onChange, notify }: Props) {
+export default function SettingsDialog({ open, onClose, settings, onChange, notify, focusSignal }: Props) {
   const t = useT()
   const categories: SettingsCategory<Category>[] = (Object.keys(INDEX) as Category[]).map((c) => ({
     id: c,
@@ -91,6 +93,7 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
   return (
     <PevenSettingsDialog
       open={open}
+      focusSignal={focusSignal}
       onClose={onClose}
       title={t('settings.title')}
       settings={settings}

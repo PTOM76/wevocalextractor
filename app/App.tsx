@@ -71,6 +71,12 @@ export default function App() {
 
   const [toast, setToast] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // 設定を開いたまま、もう一度「設定」を押したら、別の窓で開いている設定画面を手前に出す
+  const [settingsFocus, setSettingsFocus] = useState(0)
+  const openSettings = () => {
+    setSettingsOpen(true)
+    setSettingsFocus((n) => n + 1)
+  }
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -126,7 +132,7 @@ export default function App() {
         { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.run() },
         { label: t('menu.clear'), disabled: !q.items.length, onClick: q.clear },
         { divider: true },
-        { label: t('menu.settings'), onClick: () => setSettingsOpen(true) },
+        { label: t('menu.settings'), onClick: openSettings },
       ],
     },
     {
@@ -212,7 +218,7 @@ export default function App() {
           </Box>
         </Box>
 
-        <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onChange={updateSettings} notify={setToast} />
+        <SettingsDialog open={settingsOpen} focusSignal={settingsFocus} onClose={() => setSettingsOpen(false)} settings={settings} onChange={updateSettings} notify={setToast} />
         <AboutDialog
           open={aboutOpen}
           onClose={() => setAboutOpen(false)}
