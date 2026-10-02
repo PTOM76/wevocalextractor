@@ -3,7 +3,7 @@ import { createExtractor, type Backend, type Extractor } from '../src/index'
 import { EXPORT_EXT, MP3_SAMPLE_RATES, OPUS_SAMPLE_RATE, decodeFile, exportAudio, type Clip } from 'wevocal-lib'
 import { hasWebGpu, loadModels, MODELS } from './models'
 import type { Settings } from './settings'
-import { loadQueue, putItem, signature, toStored } from './persist'
+import { clearQueue, loadQueue, putItem, signature, toStored } from './persist'
 
 export type ItemStatus = 'waiting' | 'running' | 'done' | 'error'
 
@@ -57,12 +57,19 @@ export function useQueue(settings: Settings) {
   // 前回の一覧を戻す（読み終わる前に足された曲は後ろに並べる）。読み終わるまでは書き込まない
   const [restored, setRestored] = useState(false)
   useEffect(() => {
+    // 残さない設定なら戻さず、前に残したものも消す
+    if (settings.keepQueue === 'none') {
+      void clearQueue().then(() => setRestored(true))
+      return
+    }
     void loadQueue().then((saved) => {
       nextId = Math.max(nextId, ...saved.map((it) => it.id + 1))
       saved.forEach((it) => written.current.set(it.id, signature(toStored(it, 'all'))))
       setItems((list) => [...saved, ...list])
       setRestored(true)
     })
+    // 起動時の設定で1回だけ決める
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 一覧が変わったら、変わった曲だけ書き込む（抽出中の進み具合だけの変化では書かない）。一覧から消えた曲は消す
