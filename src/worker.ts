@@ -48,7 +48,8 @@ async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Ba
 
 async function createSessions(backend: Backend) {
   if (!models) throw new Error('not initialized')
-  const opts: ort.InferenceSession.SessionOptions = { executionProviders: [backend] }
+  // メモリを先回りして確保しない（iOS Safari はタブのメモリが少なく、先回りの確保で RangeError: Out of memory になりやすい）
+  const opts: ort.InferenceSession.SessionOptions = { executionProviders: [backend], enableCpuMemArena: false, enableMemPattern: false }
   sessions = {
     vocals: await ort.InferenceSession.create(models.vocals, opts),
     accompaniment: await ort.InferenceSession.create(models.accompaniment, opts),
