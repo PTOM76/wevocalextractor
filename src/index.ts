@@ -16,6 +16,8 @@ export interface ExtractorOptions {
   backend: Backend
   /** ONNX Runtime の wasm のメモリの上限（MB）。既定は `DEFAULT_MEMORY_MB`。変えると推論の Worker を作り直す */
   memoryMb?: number
+  /** 手放してから推論の Worker を止めるまでの時間（ミリ秒）。既定は `IDLE_MS`。0 ならすぐ止めてメモリを返す（メモリの少ない端末向け） */
+  keepAliveMs?: number
 }
 
 /** ONNX Runtime の wasm のメモリの上限の既定（MB）。iOS は上限の分を予約の枠から差し引くので、4GB（元の値）より下げる */
@@ -58,8 +60,8 @@ async function convert(channels: Float32Array[], from: number, to: number, outCh
 type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }
 type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; idle: number }
 
-/** 使い終わってから推論の Worker を止めるまでの時間（ミリ秒）。続けて使うときは作り直さない */
-const IDLE_MS = 30_000
+/** 使い終わってから推論の Worker を止めるまでの時間（ミリ秒）の既定。続けて使うときは作り直さない */
+export const IDLE_MS = 30_000
 
 /**
  * 推論の Worker（ページで1つ）。手放しても `IDLE_MS` のあいだは止めずに、次の createExtractor で使い回す。
@@ -178,10 +180,16 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
         drop(s, new DOMException('disposed', 'AbortError'))
         return
       }
+      // すぐ止める設定なら止める（抽出で増えたメモリを、結果を使う処理より先に返す）
+      const keep = opts.keepAliveMs ?? IDLE_MS
+      if (keep <= 0) {
+        drop(s, new DOMException('disposed', 'AbortError'))
+        return
+      }
       // セッションを手放し、しばらく使われなければ Worker を止める
       s.worker.postMessage({ kind: 'release', id: s.nextId++ } satisfies WorkerRequest)
       clearTimeout(s.idle)
-      s.idle = window.setTimeout(() => !s.owner && drop(s, new DOMException('disposed', 'AbortError')), IDLE_MS)
+      s.idle = window.setTimeout(() => !s.owner && drop(s, new DOMException('disposed', 'AbortError')), keep)
     },
   }
 }
