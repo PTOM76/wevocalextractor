@@ -70,9 +70,6 @@ async function release() {
   if (s) await Promise.all([s.vocals.release(), s.accompaniment.release()])
 }
 
-/** 止めるよう頼まれた separate の id */
-const cancelled = new Set<number>()
-
 /** 出力が使えるか（端末の GPU によっては、すべて 0 や NaN になることがある） */
 const usable = (y: Float32Array) => {
   let any = false
@@ -132,7 +129,6 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
   try {
     for (let c = 0; c < 2; c++) view(input[c], len).set(ch[c], N_FFT)
     for (let f0 = 0; f0 < frames; f0 += SPLIT) {
-      if (cancelled.delete(id)) throw new Error('cancelled')
       const count = Math.min(SPLIT, frames - f0)
       // 最後のブロックは短いので、残りのフレームを 0 にしておく
       view(mag, 2 * block).fill(0)
@@ -171,14 +167,12 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
 }
 
 /**
- * 要求は届いた順に1つずつ行う（処理中に手放されないように）。止める要求だけはすぐに受け付ける。
- * Worker は止めずに使い続ける。iOS は上限 4GB の共有メモリを同時に 2 個までしか持てず、
- * 止めた Worker の分はすぐには返らないので、作り直すと Out of memory になる（docs/DECISIONS.md）
+ * 要求は届いた順に1つずつ行う（処理中に手放されないように）。
+ * Worker は続けて使う間は止めない（作り直すと iOS で Out of memory になりやすい。docs/DECISIONS.md）
  */
 let queue = Promise.resolve()
 self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   const req = e.data
-  if (req.kind === 'cancel') return void cancelled.add(req.target)
   queue = queue.then(async () => {
     try {
       if (req.kind === 'init') {
@@ -192,8 +186,6 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       }
     } catch (err) {
       post({ id: req.id, error: String(err) })
-    } finally {
-      if (req.kind === 'separate') cancelled.delete(req.id)
     }
   })
 }

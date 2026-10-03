@@ -56,23 +56,36 @@ async function convert(channels: Float32Array[], from: number, to: number, outCh
 }
 
 type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }
+type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; idle: number }
+
+/** 使い終わってから推論の Worker を止めるまでの時間（ミリ秒）。続けて使うときは作り直さない */
+const IDLE_MS = 30_000
 
 /**
- * 推論の Worker（ページで1つ）。手放しても止めずに、次の createExtractor で使い回す。
- * iOS は共有メモリ（ONNX Runtime が作る）の上限の分を予約の枠から差し引き、止めた Worker の分はすぐには返らないので、
- * 作り直すと RangeError: Out of memory になる
+ * 推論の Worker（ページで1つ）。手放しても `IDLE_MS` のあいだは止めずに、次の createExtractor で使い回す。
+ * iOS は共有メモリ（ONNX Runtime が作る）の上限の分を予約の枠から差し引き、止めた Worker の分はすぐには返らない。
+ * 使わなくなったら止めて、増えた wasm のメモリ（縮まない）を返す
  */
-let shared: { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number } | null = null
+let shared: Shared | null = null
+
+/** Worker を止める。処理中の要求は `reason` で失敗させる */
+function drop(s: Shared, reason: Error) {
+  clearTimeout(s.idle)
+  s.worker.terminate()
+  s.pending.forEach((p) => p.reject(reason))
+  s.pending.clear()
+  if (shared === s) shared = null
+}
 
 function sharedWorker(memoryMb: number) {
   // メモリの上限は Worker で最初に準備したときに決まるので、変えたら作り直す
-  if (shared && shared.memoryMb !== memoryMb) {
-    shared.worker.terminate()
-    shared = null
+  if (shared && shared.memoryMb !== memoryMb) drop(shared, new DOMException('disposed', 'AbortError'))
+  if (shared) {
+    clearTimeout(shared.idle)
+    return shared
   }
-  if (shared) return shared
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-  const s = { worker, pending: new Map<number, Pending>(), nextId: 1, owner: null as object | null, memoryMb }
+  const s: Shared = { worker, pending: new Map(), nextId: 1, owner: null, memoryMb, idle: 0 }
   worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
     const p = s.pending.get(e.data.id)
     if (!p) return
@@ -82,23 +95,21 @@ function sharedWorker(memoryMb: number) {
     else p.resolve(e.data)
   }
   // Worker が落ちたら、次は作り直す
-  worker.onerror = (e) => {
-    s.pending.forEach((p) => p.reject(new Error(e.message || 'extractor worker error')))
-    s.pending.clear()
-    worker.terminate()
-    if (shared === s) shared = null
-  }
+  worker.onerror = (e) => drop(s, new Error(e.message || 'extractor worker error'))
   return (shared = s)
 }
+
+/** 抽出の実行環境が使われているか（作ってから手放すまで）。使われている間は、診断などで作らない */
+export const extractorBusy = () => !!shared?.owner
 
 /** 実行環境を作る。前に作ったものは使えなくなる（Worker は1つで、モデルを入れ替える） */
 export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
   const memoryMb = opts.memoryMb ?? DEFAULT_MEMORY_MB
   const s = sharedWorker(memoryMb)
-  /** この実行環境が送った要求の id（手放すときに止める） */
+  /** この実行環境が送った要求の id */
   const mine = new Set<number>()
   let disposed = false
-  // Worker のモデルの持ち主。あとから作ったものに入れ替わっていたら、手放すときにモデルを消さない
+  // Worker のモデルの持ち主。あとから作ったものに入れ替わっていたら、手放すときに Worker に触らない
   const token = {}
   s.owner = token
   const send = (req: WorkerRequest, transfer: Transferable[], onProgress?: (p: number) => void) =>
@@ -119,11 +130,10 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
   } catch (e) {
     // ONNX Runtime は wasm の準備に一度失敗すると、同じ Worker では二度と準備できない
     // （previous call to initWasm() failed）。次は新しい Worker で作る
-    s.worker.terminate()
-    if (shared === s) shared = null
+    if (s.owner === token) s.owner = null
+    drop(s, new DOMException('disposed', 'AbortError'))
     throw e
-  }
-  /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
+  }  /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
   const run = async (channels: Float32Array[], sampleRate: number, stems: Stem[], o: Omit<SeparateOptions, 'stem'>) => {
     const n = channels[0].length
     const input = await convert(channels, sampleRate, MODEL_RATE, 2)
@@ -161,13 +171,17 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     dispose() {
       if (disposed) return
       disposed = true
-      // 処理中の separate は待ち続けないよう失敗させ（中断に使える）、Worker には止めて手放すよう頼む
-      for (const id of mine) {
-        s.worker.postMessage({ kind: 'cancel', id: s.nextId++, target: id } satisfies WorkerRequest)
-        s.pending.get(id)?.reject(new DOMException('disposed', 'AbortError'))
-        s.pending.delete(id)
+      if (s.owner !== token) return
+      s.owner = null
+      if (mine.size) {
+        // 処理中なら Worker ごと止める（すぐに止まる。処理中の separate は失敗する）
+        drop(s, new DOMException('disposed', 'AbortError'))
+        return
       }
-      mine.clear()
-      if (s.owner === token) s.worker.postMessage({ kind: 'release', id: s.nextId++ } satisfies WorkerRequest)
-    },  }
+      // セッションを手放し、しばらく使われなければ Worker を止める
+      s.worker.postMessage({ kind: 'release', id: s.nextId++ } satisfies WorkerRequest)
+      clearTimeout(s.idle)
+      s.idle = window.setTimeout(() => !s.owner && drop(s, new DOMException('disposed', 'AbortError')), IDLE_MS)
+    },
+  }
 }
