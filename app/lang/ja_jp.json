@@ -3,6 +3,7 @@
   "menu.file": "ファイル",
   "menu.open": "開く…",
   "menu.add": "追加…",
+  "file.audioType": "音声ファイル",
   "menu.saveAll": "すべて保存",
   "menu.runAll": "すべて抽出",
   "menu.clear": "一覧を空にする",

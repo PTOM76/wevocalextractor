@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
+import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmui/pwa'
+import { configureFileAccess } from 'pevenmui/web'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
 import { openExternal, USER_GUIDE_URL } from './links'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
@@ -80,12 +81,14 @@ export default function App() {
   }
   const [aboutOpen, setAboutOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
   const q = useQueue(settings)
+  // 開く画面はフォルダを覚える。最近使用したファイルの一覧はないので記録しない
+  configureFileAccess({ rememberFolder: true, startFolder: 'music', recentFiles: false, pickerMode: 'auto' })
+  const picker = useFilesPicker(AUDIO_ACCEPT, q.add, t('file.audioType'))
   const hasWaiting = q.items.some((it) => it.status === 'waiting')
   const done = q.items.filter((it) => it.vocals || it.accompaniment)
 
-  const openFiles = () => inputRef.current?.click()
+  const openFiles = picker.open
   // ダウンロードした結果は、次に開いたときには残さない（画面の一覧からは消さない）
   const save = (item: QueueItem, stem: Stem) => {
     const blob = item[stem]
@@ -109,7 +112,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o' && !document.querySelector('[role="dialog"]')) {
         e.preventDefault()
-        inputRef.current?.click()
+        picker.open()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -180,17 +183,7 @@ export default function App() {
       <WindowModeContext.Provider value={settings.dialogWindow === 'auto' ? autoWindowMode() : settings.dialogWindow}>
         <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
           <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={mobile ? mobileMenus : menus} />
-          <input
-            ref={inputRef}
-            type="file"
-            accept={AUDIO_ACCEPT}
-            multiple
-            hidden
-            onChange={(e) => {
-              q.add(Array.from(e.target.files ?? []))
-              e.target.value = ''
-            }}
-          />
+          {picker.input}
 
           {/* 操作の帯: モデル・抽出するもの・形式と、一覧への操作 */}
           <Paper square elevation={0} sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 1, flexWrap: 'wrap', borderBottom: 1, borderColor: 'divider' }}>

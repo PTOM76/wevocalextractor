@@ -3,6 +3,7 @@
   "menu.file": "File",
   "menu.open": "Open…",
   "menu.add": "Add…",
+  "file.audioType": "Audio file",
   "menu.saveAll": "Save all",
   "menu.runAll": "Extract all",
   "menu.clear": "Clear list",

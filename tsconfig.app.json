@@ -20,6 +20,7 @@
     "paths": {
       "pevenmui": ["../pevenmui/src/index.ts", "./pevenmui/src/index.ts"],
       "pevenmui/pwa": ["../pevenmui/src/pwa/index.ts", "./pevenmui/src/pwa/index.ts"],
+      "pevenmui/web": ["../pevenmui/src/web/index.ts", "./pevenmui/src/web/index.ts"],
       "wevocal-lib": ["../wevocal-lib/web/src/index.ts", "./wevocal-lib/web/src/index.ts"]
     }
   },

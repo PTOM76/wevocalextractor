@@ -3,6 +3,7 @@
   "menu.file": "檔案",
   "menu.open": "開啟…",
   "menu.add": "新增…",
+  "file.audioType": "音訊檔案",
   "menu.saveAll": "全部儲存",
   "menu.runAll": "全部擷取",
   "menu.clear": "清空清單",

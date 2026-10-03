@@ -3,6 +3,7 @@
   "menu.file": "파일",
   "menu.open": "열기…",
   "menu.add": "추가…",
+  "file.audioType": "오디오 파일",
   "menu.saveAll": "모두 저장",
   "menu.runAll": "모두 추출",
   "menu.clear": "목록 비우기",
