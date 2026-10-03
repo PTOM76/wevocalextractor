@@ -41,6 +41,31 @@ ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーは出�
 - スマホでの速さ、int8 / fp32 の WebGPU での速さは未測定
 - 測った確認ページは、WeVocalSynth の履歴（`experiments/vocal-extractor/`、コミット bf5b964 まで）にある
 
+## UVR の MDX-Net（追加の候補、2026-10-04 に調べた）
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases/tag/source-separation-models) が、UVR（Ultimate Vocal Remover）の MDX-Net を ONNX にして配布している（28〜63MB、17 種類）。ボーカル用と伴奏用の 2 つを足す予定。
+
+| 候補 | 大きさ | 出すもの | 用途 |
+| --- | --- | --- | --- |
+| `UVR-MDX-NET-Voc_FT` | 63MB | ボーカル | ボーカルを高品質に取り出す |
+| `UVR-MDX-NET-Inst_HQ_4` | 56MB | 伴奏 | 伴奏を高品質に取り出す |
+
+### ライセンス
+UVR のコードは MIT。重みについて、UVR の README に「UVR's core developers trained all of the models provided in this package (except for the Demucs v3 and v4 4-stem models)」「For all third-party application developers who wish to use our models, please honor the MIT license by providing credit to UVR and its developers」とある（[ultimatevocalremovergui](https://github.com/Anjok07/ultimatevocalremovergui)）。Voc_FT・Inst_HQ_4 は UVR の開発者が学習させたものなので、MIT として、UVR と開発者のクレジットを付けて配る。モデルごとのライセンスファイルは無い。名前に Kim の付くモデル（Kim_Vocal など）は別の作者のもので、ライセンスがはっきりしないので使わない（[kmdx-net#3](https://github.com/KimberleyJensen/kmdx-net_music-source-separation/issues/3)）。
+
+### 入出力（Spleeter との違い）
+sherpa-onnx の実装（`offline-source-separation-uvr-impl.h`、`scripts/uvr_mdx/test.py`）から:
+
+| 項目 | 内容 |
+| --- | --- |
+| 入力 `x` | 複素スペクトログラム `[分割数, 4, dim_f, dim_t]`。4 は左の実部・左の虚部・右の実部・右の虚部。dim_f は 3072 など、dim_t は 256 |
+| 出力 | 同じ形の、取り出す音の複素スペクトログラム（マスクではない）。dim_f より上のビンは 0 |
+| もう一方の音 | 元の音 − 取り出した音 |
+| STFT | 44.1kHz、n_fft はモデルごと（6144・7680 など。2 のべき乗ではない）、hop 1024、Hann 窓、center あり |
+| 区切り方 | 15 秒ずつ、前後 1 秒の余白。その中を `hop × (dim_t − 1) − n_fft` サンプルずつに分けて推論する |
+| モデルごとの値 | ONNX のメタデータ（`n_fft`・`dim_f`・`dim_t`・`hop_length` など）。ブラウザの ONNX Runtime からは読めないので、こちらの表に書く |
+| 速さ | CPU で Spleeter の約 10 倍遅い（sherpa-onnx の測定、28MB のモデルで RTF 0.73） |
+
+組み込むには、2 のべき乗でない FFT（3・5 を含む大きさ）を dsp.wasm に足し、Worker に MDX-Net 用の処理を足す。
 ## 今後の候補
 | 候補 | 所感 |
 | --- | --- |
