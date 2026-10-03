@@ -2,17 +2,19 @@
  * WeVocalExtractor: 曲からボーカル（または伴奏）を取り出す。UI を持たず、React にも依存しない（docs/DESIGN.md。画面は app/）。
  * 受け渡しはチャンネルごとの Float32Array とサンプルレートだけ。推論は専用の Worker で行う。
  */
-import type { Backend, HighBand, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
+import type { Backend, HighBand, MdxParams, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
 
-export type { Backend, HighBand, Runtime, Stem }
+export type { Backend, HighBand, MdxParams, Runtime, Stem }
 
 /** モデル（Spleeter 2stems）のサンプルレート */
 const MODEL_RATE = 44100
 
 export interface ExtractorOptions {
-  /** ボーカル用・伴奏用のモデル（ONNX） */
-  vocals: ArrayBuffer
-  accompaniment: ArrayBuffer
+  /** Spleeter のボーカル用・伴奏用のモデル（ONNX）。`mdx` を渡すときは使わない */
+  vocals?: ArrayBuffer
+  accompaniment?: ArrayBuffer
+  /** UVR の MDX-Net のモデル（ONNX）と、モデルごとの値（docs/MODELS.md） */
+  mdx?: { model: ArrayBuffer; params: MdxParams }
   backend: Backend
   /** ONNX Runtime の wasm のメモリの上限（MB）。既定は `DEFAULT_MEMORY_MB`。変えると推論の Worker を作り直す */
   memoryMb?: number
@@ -113,6 +115,13 @@ export const extractorBusy = () => !!shared?.owner
 
 /** 実行環境を作る。前に作ったものは使えなくなる（Worker は1つで、モデルを入れ替える） */
 export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
+  const model =
+    opts.mdx
+      ? ({ kind: 'mdx', model: opts.mdx.model, params: opts.mdx.params } as const)
+      : opts.vocals && opts.accompaniment
+        ? ({ kind: 'spleeter', vocals: opts.vocals, accompaniment: opts.accompaniment } as const)
+        : null
+  if (!model) throw new Error('model is required')
   const memoryMb = opts.memoryMb ?? DEFAULT_MEMORY_MB
   const runtime = opts.runtime ?? (opts.backend === 'webgpu' ? 'gpu' : 'cpu')
   const s = sharedWorker(memoryMb, runtime)
@@ -133,10 +142,10 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
 
   // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
   try {
-    await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl }, [
-      opts.vocals,
-      opts.accompaniment,
-    ])
+    await send(
+      { kind: 'init', id: s.nextId++, model, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl },
+      model.kind === 'mdx' ? [model.model] : [model.vocals, model.accompaniment],
+    )
   } catch (e) {
     // ONNX Runtime は wasm の準備に一度失敗すると、同じ Worker では二度と準備できない
     // （previous call to initWasm() failed）。次は新しい Worker で作る

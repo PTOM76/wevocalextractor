@@ -1,8 +1,10 @@
 /// <reference lib="webworker" />
-// 推論用の Worker。STFT → 推論 → マスク → 逆STFT を 512 フレームずつ行う（1曲分のスペクトルを一度に持たないため）。
-// STFT と、マスクを掛けての逆STFT は dsp.wasm（dsp/ の Rust、wevocal-lib の STFT を使う）で行う
+// 推論用の Worker。STFT と逆STFT は dsp.wasm（dsp/ の Rust、wevocal-lib の STFT を使う）で行う。
+// - Spleeter: STFT → 推論（ボーカル用・伴奏用）→ マスク → 逆STFT を 512 フレームずつ（1曲分のスペクトルを一度に持たないため）
+// - MDX-Net: 区間ごとに STFT → 推論（取り出す音の複素スペクトログラム）→ 逆STFT。もう一方の音は元の音から引く（mdx.ts）
 import type * as Ort from 'onnxruntime-web'
-import type { Backend, HighBand, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
+import type { Backend, HighBand, MdxParams, ModelData, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
+import { separateMdx } from './mdx'
 
 /** STFT の設定。dsp/src/lib.rs の N_FFT / HOP と一致させる */
 const N_FFT = 4096
@@ -13,7 +15,7 @@ const SPLIT = 512
 /** モデルが扱う周波数ビンの数（約 11kHz まで。dsp/src/lib.rs の MODEL_BINS） */
 const MODEL_BINS = 1024
 
-interface DspExports {
+export interface DspExports {
   memory: WebAssembly.Memory
   alloc_f32(len: number): number
   free_f32(ptr: number, len: number): void
@@ -22,6 +24,8 @@ interface DspExports {
     re: number, im: number, mine: number, other: number, frame0: number, count: number,
     edge: number, out: number, outLen: number, wsum: number,
   ): void
+  mdx_analyze(l: number, r: number, nFft: number, hop: number, dimF: number, dimT: number, tensor: number): void
+  mdx_synthesize(tensor: number, nFft: number, hop: number, dimF: number, dimT: number, gain: number, l: number, r: number): void
 }
 
 /**
@@ -30,10 +34,12 @@ interface DspExports {
  * どちらを読むかは最初の init の `runtime` で決まる（違う方が要るときは、index.ts が Worker を作り直す）
  */
 let ort: typeof Ort
-let sessions: { vocals: Ort.InferenceSession; accompaniment: Ort.InferenceSession } | null = null
+/** 読み込んだモデルのセッション */
+type Loaded = { kind: 'spleeter'; vocals: Ort.InferenceSession; accompaniment: Ort.InferenceSession } | { kind: 'mdx'; session: Ort.InferenceSession; params: MdxParams }
+let loaded: Loaded | null = null
 let dsp: DspExports | null = null
 /** GPU で動かしているときは、出力がおかしければ CPU で作り直すためにモデルを持っておく */
-let models: { vocals: Uint8Array; accompaniment: Uint8Array } | null = null
+let model: ModelData | null = null
 let current: Backend = 'wasm'
 
 const post = (res: WorkerResponse, transfer: Transferable[] = []) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(res, transfer)
@@ -44,7 +50,7 @@ async function loadDsp(): Promise<DspExports> {
   return instance.exports as unknown as DspExports
 }
 
-async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend, memoryMb: number, runtime: Runtime, wasmUrl?: string) {
+async function init(m: ModelData, backend: Backend, memoryMb: number, runtime: Runtime, wasmUrl?: string) {
   // ONNX Runtime の wasm のメモリの上限（ortMemory.ts が書き換えた所で読む。最初の準備のときだけ効く）
   ;(globalThis as { __ortMaxPages?: number }).__ortMaxPages = Math.round(memoryMb * 16)
   // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
@@ -56,33 +62,36 @@ async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Ba
   ort.env.wasm.numThreads = 1
   dsp ??= await loadDsp()
   await release()
-  models = { vocals: new Uint8Array(vocals), accompaniment: new Uint8Array(accompaniment) }
+  model = m
   await createSessions(backend)
 }
 
 async function createSessions(backend: Backend) {
-  if (!models) throw new Error('not initialized')
+  const m = model
+  if (!m) throw new Error('not initialized')
   // メモリを先回りして確保しない（iOS Safari はタブのメモリが少なく、先回りの確保で RangeError: Out of memory になりやすい）
   const opts: Ort.InferenceSession.SessionOptions = { executionProviders: [backend], enableCpuMemArena: false, enableMemPattern: false }
-  sessions = {
-    vocals: await ort.InferenceSession.create(models.vocals, opts),
-    accompaniment: await ort.InferenceSession.create(models.accompaniment, opts),
-  }
+  const create = (buf: ArrayBuffer) => ort.InferenceSession.create(new Uint8Array(buf), opts)
+  loaded =
+    m.kind === 'spleeter'
+      ? { kind: 'spleeter', vocals: await create(m.vocals), accompaniment: await create(m.accompaniment) }
+      : { kind: 'mdx', session: await create(m.model), params: m.params }
   current = backend
   // CPU で動かすなら、作り直しに使うことはないので手放す
-  if (backend === 'wasm') models = null
+  if (backend === 'wasm') model = null
 }
 
 /** セッションを手放す。wasm のメモリ（ONNX Runtime と dsp.wasm）は残す */
 async function release() {
-  const s = sessions
-  sessions = null
-  models = null
-  if (s) await Promise.all([s.vocals.release(), s.accompaniment.release()])
+  const s = loaded
+  loaded = null
+  model = null
+  if (s?.kind === 'spleeter') await Promise.all([s.vocals.release(), s.accompaniment.release()])
+  else if (s) await s.session.release()
 }
 
 /** 出力が使えるか（端末の GPU によっては、すべて 0 や NaN になることがある） */
-const usable = (y: Float32Array) => {
+export const usable = (y: Float32Array) => {
   let any = false
   for (let i = 0; i < y.length; i++) {
     if (!Number.isFinite(y[i])) return false
@@ -91,27 +100,43 @@ const usable = (y: Float32Array) => {
   return any
 }
 
-/** 推論する。GPU で失敗したり出力がおかしければ、CPU で作り直してやり直す */
-async function infer(x: Ort.Tensor, check: boolean): Promise<{ v: Float32Array; a: Float32Array }> {
-  const s = sessions!
+/**
+ * `run` で推論する。`check` なら GPU の出力が使えるかを確かめ、GPU で失敗したり出力がおかしければ、CPU で作り直してやり直す。
+ * 確かめられたら、作り直し用のモデルは手放す
+ */
+async function guarded<T extends Float32Array[]>(run: () => Promise<T>, check: boolean): Promise<T> {
   try {
-    const v = (await s.vocals.run({ x })).y.data as Float32Array
-    const a = (await s.accompaniment.run({ x })).y.data as Float32Array
-    if (!check || current !== 'webgpu' || (usable(v) && usable(a))) {
-      // 確かめられたら、作り直し用のモデルは手放す
-      if (check) models = null
-      return { v, a }
+    const out = await run()
+    if (!check || current !== 'webgpu' || out.every(usable)) {
+      if (check) model = null
+      return out
     }
   } catch (e) {
     if (current !== 'webgpu') throw e
   }
   await createSessions('wasm')
-  return infer(x, false)
+  return run()
 }
+
+/** 出力が使えるかを、まだ確かめていないか（GPU で動かしていて、作り直し用のモデルを持っている） */
+const needsCheck = () => current === 'webgpu' && model !== null
 
 /** `ch` は 44.1kHz のステレオ。`stems` の音を、その順に返す（推論は1回で、逆STFT だけ音ごとに行う） */
 async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand: HighBand) {
-  if (!sessions || !dsp) throw new Error('not initialized')
+  if (!loaded || !dsp) throw new Error('not initialized')
+  if (loaded.kind === 'mdx') {
+    const { params } = loaded
+    const infer = (x: Float32Array, check: boolean) =>
+      guarded(async () => {
+        const s = loaded
+        if (s?.kind !== 'mdx') throw new Error('not initialized')
+        const out = await s.session.run({ input: new ort.Tensor('float32', x, [1, 4, params.dimF, params.dimT]) })
+        return [out.output.data as Float32Array]
+      }, check).then(([y]) => y)
+    const result = await separateMdx(dsp, ch, stems, params, infer, needsCheck, (p) => post({ id, progress: p }))
+    post({ id, stems: result }, result.flat().map((c) => c.buffer))
+    return
+  }
   const d = dsp
   // 両端のフレームも窓の重なりが揃うよう、前後に N_FFT ずつ無音を足して処理し、最後に切り取る
   const n = ch[0].length
@@ -147,7 +172,11 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
       const x = new ort.Tensor('float32', view(mag, 2 * block).slice(), [2, 1, SPLIT, MODEL_BINS])
       // 最初のブロックで、GPU の出力が使えるかを確かめる（入力が無音なら確かめられないので次へ持ち越す）
       const silent = !usable(x.data as Float32Array)
-      const { v, a } = await infer(x, !silent && current === 'webgpu' && models !== null)
+      const [v, a] = await guarded(async () => {
+        const s = loaded
+        if (s?.kind !== 'spleeter') throw new Error('not initialized')
+        return [(await s.vocals.run({ x })).y.data as Float32Array, (await s.accompaniment.run({ x })).y.data as Float32Array]
+      }, !silent && needsCheck())
       for (const [si, stem] of stems.entries()) {
         view(mine, 2 * block).set(stem === 'vocals' ? v : a)
         view(other, 2 * block).set(stem === 'vocals' ? a : v)
@@ -187,7 +216,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (req.kind === 'init') {
-        await init(req.vocals, req.accompaniment, req.backend, req.memoryMb, req.runtime, req.wasmUrl)
+        await init(req.model, req.backend, req.memoryMb, req.runtime, req.wasmUrl)
         post({ id: req.id, ok: true })
       } else if (req.kind === 'release') {
         await release()
