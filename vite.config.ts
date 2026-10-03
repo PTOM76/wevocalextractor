@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
+import { ortMemory } from './ortMemory'
 
 // 単体のサイト（app/）のビルド設定。ライブラリ（src/）は React に依存しないまま、app/ から使う
 const root = dirname(fileURLToPath(import.meta.url))
@@ -119,5 +120,6 @@ export default defineConfig({
     // wasm（dsp.wasm・ONNX Runtime）を JS に埋め込まない
     assetsInlineLimit: 0,
   },
-  worker: { format: 'es' },
+  // ONNX Runtime のメモリの上限を下げる（推論は Worker の中なので Worker のビルドに入れる）
+  worker: { format: 'es', plugins: () => [ortMemory()] },
 })
