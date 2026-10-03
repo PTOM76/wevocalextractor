@@ -100,10 +100,18 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     })
 
   // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
-  await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend }, [
-    opts.vocals,
-    opts.accompaniment,
-  ])
+  try {
+    await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend }, [
+      opts.vocals,
+      opts.accompaniment,
+    ])
+  } catch (e) {
+    // ONNX Runtime は wasm の準備に一度失敗すると、同じ Worker では二度と準備できない
+    // （previous call to initWasm() failed）。次は新しい Worker で作る
+    s.worker.terminate()
+    if (shared === s) shared = null
+    throw e
+  }
   /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
   const run = async (channels: Float32Array[], sampleRate: number, stems: Stem[], o: Omit<SeparateOptions, 'stem'>) => {
     const n = channels[0].length
