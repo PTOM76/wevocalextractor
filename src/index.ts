@@ -147,18 +147,23 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
       o.onProgress,
     )
     if (!('stems' in res)) throw new Error('unexpected response')
-    return Promise.all(
-      res.stems.map(async (st) => {
-        const back = await convert(st, MODEL_RATE, sampleRate, channels.length)
-        // サンプルレートの変換で 1 サンプル程度ずれることがあるので、入力と同じ長さにそろえる
-        return back.map((c) => {
+    // 1 つずつ変換する（同時に行うと、変換の途中の複製が音の数だけ重なり、iOS でタブが落ちた）
+    const out: Float32Array[][] = []
+    for (let i = 0; i < res.stems.length; i++) {
+      const back = await convert(res.stems[i], MODEL_RATE, sampleRate, channels.length)
+      // 変換前のものは、もう要らない
+      res.stems[i] = []
+      // サンプルレートの変換で 1 サンプル程度ずれることがあるので、入力と同じ長さにそろえる
+      out.push(
+        back.map((c) => {
           if (c.length === n) return c
           const o2 = new Float32Array(n)
           o2.set(c.subarray(0, n))
           return o2
-        })
-      }),
-    )
+        }),
+      )
+    }
+    return out
   }
 
   return {
