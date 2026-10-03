@@ -4,6 +4,7 @@ import { Check, Choice, Group, LANG_NAMES, Row, SettingsDialog as PevenSettingsD
 import { UpdateSection } from 'pevenmui/pwa'
 import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
+import Diagnose from './Diagnose'
 import { clearModels } from './models'
 import { clearQueue, queueSize, type KeepMode } from './persist'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
@@ -15,7 +16,7 @@ const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'data.queue', 'settings.keepQueue', 'settings.keepQueueHelp'],
-  debug: ['settings.groupDebug', 'settings.dialogWindow'],
+  debug: ['settings.groupDebug', 'settings.dialogWindow', 'settings.diagnose', 'settings.diagnoseHelp'],
 }
 
 interface Props {
@@ -190,6 +191,7 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                 ]}
               />
             </Row>
+            <Diagnose settings={draft} />
           </Group>
         ),
       })}
