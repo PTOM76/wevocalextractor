@@ -1,7 +1,7 @@
 {
   "name": "wevocalextractor",
   "private": true,
-  "version": "1.0.10",
+  "version": "1.1.0",
   "type": "module",
   "description": "曲からボーカルと伴奏を取り出す Web ツール兼ライブラリ。ブラウザで動き、音声を外部に送らない",
   "license": "MIT",
