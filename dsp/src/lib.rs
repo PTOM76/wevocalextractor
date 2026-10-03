@@ -5,6 +5,7 @@
 //! wasm では素の C ABI（`ffi`）で公開し、Worker から `WebAssembly.instantiate` で読み込む。
 
 mod ffi;
+pub mod mdx;
 
 use wevocal_lib::stft::Stft;
 
