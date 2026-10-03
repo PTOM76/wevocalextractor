@@ -6,6 +6,7 @@ import type { WavFormat } from 'wevocal-lib'
 import { useT, type LangSetting, type MessageKey } from './i18n'
 import Diagnose from './Diagnose'
 import { clearModels } from './models'
+import { backendAllowed } from '../src/compat'
 import { clearQueue, queueSize, type KeepMode } from './persist'
 import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
 
@@ -155,7 +156,14 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
             </Row>
           </Group>
           <Group title={t('settings.groupExtract')}>
-            <Check checked={draft.gpu} onChange={(v) => set({ gpu: v })} label={t('settings.gpu')} help={t('settings.gpuHelp')} />
+            {/* GPU を使えないモデルでは押せなくし、理由を出す */}
+            <Check
+              checked={draft.gpu && backendAllowed(draft.model, 'webgpu')}
+              disabled={!backendAllowed(draft.model, 'webgpu')}
+              onChange={(v) => set({ gpu: v })}
+              label={t('settings.gpu')}
+              help={backendAllowed(draft.model, 'webgpu') ? t('settings.gpuHelp') : t('settings.gpuUnsupported')}
+            />
             <Check checked={draft.highBand} onChange={(v) => set({ highBand: v })} label={t('settings.highBand')} help={t('settings.highBandHelp')} />
           </Group>
           </>

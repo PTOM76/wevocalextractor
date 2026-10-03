@@ -85,6 +85,7 @@
   "settings.groupUpdate": "アップデート",
   "settings.groupExtract": "ボーカル抽出",
   "settings.gpu": "GPU（WebGPU）を使う",
+  "settings.gpuUnsupported": "このモデルは GPU に対応していないため、CPU で処理します。処理速度を重視する場合は、ほかのモデルを選択してください",
   "settings.gpuHelp": "使えないときは CPU で処理します",
   "settings.highBand": "高音域を残す",
   "settings.highBandHelp": "約 11kHz より上を残す（伴奏が混ざりやすくなる）",

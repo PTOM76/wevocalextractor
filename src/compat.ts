@@ -34,9 +34,6 @@ type Rule = { model: string; when?: (env: Env, prefs: Prefs) => boolean; reason:
 const RULES: Rule[] = [
   // ONNX Runtime Web 1.30 の WebGPU で、エラーは出ずに出力がすべて 0 になった（PC・Chrome、2026-10-01）
   { model: 'fp16', avoidBackend: 'webgpu', reason: 'fp16-webgpu-zeros' },
-  // WebGPU を使えないので CPU で動き、抽出のあとにタブが落ちた（iPad、2026-10-03。CPU では WebGPU を含まない版を使うようにしたので、
-  // 今は落ちる原因には当たらない見込み）。GPU を使う設定なら、GPU で動く int8 に替えたほうが速い。GPU を使わない設定では替えない
-  { model: 'fp16', when: (env, prefs) => env.ios && prefs.gpu, use: ['int8', 'fp32'], reason: 'ios-fp16-gpu' },
 ]
 
 const applies = (r: Rule, model: string, env: Env, prefs: Prefs) => r.model === model && (!r.when || r.when(env, prefs))

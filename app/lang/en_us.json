@@ -85,6 +85,7 @@
   "settings.groupUpdate": "Updates",
   "settings.groupExtract": "Vocal extraction",
   "settings.gpu": "Use GPU (WebGPU)",
+  "settings.gpuUnsupported": "This model does not support the GPU, so it is processed on the CPU. For faster processing, choose another model",
   "settings.gpuHelp": "Falls back to CPU when unavailable",
   "settings.highBand": "Keep high frequencies",
   "settings.highBandHelp": "Keep above ~11 kHz (accompaniment may leak in)",

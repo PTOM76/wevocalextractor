@@ -85,6 +85,7 @@
   "settings.groupUpdate": "更新",
   "settings.groupExtract": "人聲擷取",
   "settings.gpu": "使用 GPU（WebGPU）",
+  "settings.gpuUnsupported": "此模型不支援 GPU，將使用 CPU 處理。如需更快的處理速度，請選擇其他模型",
   "settings.gpuHelp": "無法使用時以 CPU 處理",
   "settings.highBand": "保留高頻",
   "settings.highBandHelp": "保留約 11kHz 以上（容易混入伴奏）",

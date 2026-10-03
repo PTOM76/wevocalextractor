@@ -85,6 +85,7 @@
   "settings.groupUpdate": "업데이트",
   "settings.groupExtract": "보컬 추출",
   "settings.gpu": "GPU (WebGPU) 사용",
+  "settings.gpuUnsupported": "이 모델은 GPU를 지원하지 않아 CPU로 처리합니다. 처리 속도를 중시한다면 다른 모델을 선택하세요",
   "settings.gpuHelp": "쓸 수 없으면 CPU로 처리합니다",
   "settings.highBand": "고음역 남기기",
   "settings.highBandHelp": "약 11kHz 이상을 남김 (반주가 섞이기 쉬움)",

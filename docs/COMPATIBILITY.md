@@ -9,7 +9,7 @@
 | --- | --- | --- | --- | --- | --- |
 | PC・Chrome（ONNX Runtime Web 1.30） | fp16 | WebGPU | エラーは出ずに出力がすべて 0 | fp16 は常に WASM で動かす | 2026-10-01 |
 | iPad（iPadOS、Safari 26.6、PWA） | すべて | すべて | 実行環境を作り直すと `RangeError: Out of memory`（no available backend found） | wasm のメモリの上限を 1GB に下げる（DECISIONS.md） | 2026-10-03 |
-| iPad（iPadOS、Safari 26.6、PWA） | fp16 | WASM（fp16 は WebGPU を使わない） | 抽出のあと（トラックに分けた直後など）にタブが落ちる | CPU では WebGPU を含まない版を使う（下の節）。GPU を使う設定なら int8 に替える（GPU で動くので速い） | 2026-10-03 |
+| iPad（iPadOS、Safari 26.6、PWA） | fp16 | WASM（fp16 は WebGPU を使わない） | 抽出のあと（トラックに分けた直後など）にタブが落ちる | CPU では WebGPU を含まない版を使う（下の節） | 2026-10-03 |
 | iPad（iPadOS、Safari 26.6、PWA） | int8・fp32 | WebGPU | 抽出できる | — | 2026-10-03 |
 
 ### iPad で fp16 が落ちる理由（見立て）
@@ -32,11 +32,11 @@
 | Adreno 750（Android）で、ORT 1.30 から GPU のプロセスが落ちる（4bit の MatMulNBits のみ。このモデルは使わない） | Android、Adreno、ORT 1.30 | [musetric#901](https://github.com/musetric/musetric/issues/901) |
 | Adreno 730（Snapdragon SM8450）で WebGPU の検証エラー | Android、Adreno 730 | [onnxruntime#21970](https://github.com/microsoft/onnxruntime/issues/21970) |
 ## 自動で替える組み合わせ
-[src/compat.ts](../src/compat.ts) の `RULES`。設定で選んだモデルが当てはまると、抽出のときだけ代わりのモデルを使う（設定は変えない）。設定の画面にもその旨を出す。
+[src/compat.ts](../src/compat.ts) の `RULES` の `use`。設定で選んだモデルが当てはまると、抽出のときだけ代わりのモデルを使う（設定は変えない）。設定の画面にもその旨を出す。GPU を使えないモデル（`avoidBackend`）は、替えずに設定の「GPU処理を利用する」を押せなくし、CPU で処理すると表示する（以前は iPhone・iPad の fp16 を int8 に替えていたが、CPU で WebGPU を含まない版を使うようにしたのでやめた。2026-10-03）。
 
 | 条件 | 選んだモデル | 代わりに使うモデル |
 | --- | --- | --- |
-| iPhone・iPad（iPadOS の Safari は Mac を名乗るので、タッチの数でも見分ける）で、GPU を使う設定 | fp16 | int8（GPU で動く。GPU を使わない設定では替えず、fp16 を CPU で動かす） |
+| （今はなし） | | |
 
 ## まだ調べていないこと
 - Android（Chrome）での各モデル・WebGPU
