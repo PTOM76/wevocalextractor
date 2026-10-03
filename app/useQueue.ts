@@ -107,7 +107,7 @@ export function useQueue(settings: Settings) {
   const create = async (signal: AbortSignal): Promise<Extractor> => {
     setPhase({ kind: 'model', progress: 0 })
     // この端末と非互換のモデルなら、代わりのモデルで抽出する（src/compat.ts。設定は変えない）
-    const model = resolveModel(settings.model).model
+    const model = resolveModel(settings.model, settings.gpu).model
     const models = await loadModels(model, (p) => setPhase({ kind: 'model', progress: p }), signal)
     setPhase({ kind: 'init' })
     const useGpu = settings.gpu && backendAllowed(model, 'webgpu') && (await hasWebGpu())

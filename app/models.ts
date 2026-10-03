@@ -16,8 +16,8 @@ export const MODELS: Record<ModelKind, { mb: number; label: MessageKey }> = {
 }
 
 /** この端末で実際に使うモデル（非互換なら代わりのもの）と、替えたか */
-export function resolveModel(model: ModelKind): { model: ModelKind; replaced: boolean } {
-  const r = effectiveModel(model, Object.keys(MODELS))
+export function resolveModel(model: ModelKind, gpu: boolean): { model: ModelKind; replaced: boolean } {
+  const r = effectiveModel(model, { gpu }, Object.keys(MODELS))
   return { model: r.model as ModelKind, replaced: r.reason !== null }
 }
 

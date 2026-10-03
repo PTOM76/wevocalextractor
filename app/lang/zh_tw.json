@@ -7,7 +7,7 @@
   "menu.runAll": "全部擷取",
   "menu.clear": "清空清單",
   "opt.model": "模型",
-  "opt.modelReplaced": "與本裝置不相容，將使用「{name}」擷取",
+  "opt.modelReplaced": "「{from}」與 GPU 不相容，將使用「{name}」擷取",
   "opt.modelLight": "輕量",
   "opt.modelStandard": "標準",
   "opt.modelPrecise": "高精度",

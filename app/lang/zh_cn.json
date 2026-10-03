@@ -7,7 +7,7 @@
   "menu.runAll": "全部提取",
   "menu.clear": "清空列表",
   "opt.model": "模型",
-  "opt.modelReplaced": "与本设备不兼容，将使用“{name}”提取",
+  "opt.modelReplaced": "“{from}”与 GPU 不兼容，将使用“{name}”提取",
   "opt.modelLight": "轻量",
   "opt.modelStandard": "标准",
   "opt.modelPrecise": "高精度",

@@ -59,9 +59,9 @@ function OptionSelect<T extends string>(p: { label: string; value: T; disabled: 
 
 export default function App() {
   const [settings, updateSettings] = useSettings()
-  // この端末と非互換のモデルを選んでいたら、代わりに使うモデルを出す
-  const resolved = resolveModel(settings.model)
-  const modelNote = resolved.replaced ? t('opt.modelReplaced', { name: t(MODELS[resolved.model].label) }) : undefined
+  // この端末で使えないか向かないモデルを選んでいたら、代わりに使うモデルを出す
+  const resolved = resolveModel(settings.model, settings.gpu)
+  const modelNote = resolved.replaced ? t('opt.modelReplaced', { from: t(MODELS[settings.model].label), name: t(MODELS[resolved.model].label) }) : undefined
   // 子の描画より先に言語を切り替えておく（t() は描画中に参照される）
   const lang = resolveLang(settings.language)
   setLang(lang)

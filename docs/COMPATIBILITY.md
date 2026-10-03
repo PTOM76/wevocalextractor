@@ -9,7 +9,7 @@
 | --- | --- | --- | --- | --- | --- |
 | PC・Chrome（ONNX Runtime Web 1.30） | fp16 | WebGPU | エラーは出ずに出力がすべて 0 | fp16 は常に WASM で動かす | 2026-10-01 |
 | iPad（iPadOS、Safari 26.6、PWA） | すべて | すべて | 実行環境を作り直すと `RangeError: Out of memory`（no available backend found） | wasm のメモリの上限を 1GB に下げる（DECISIONS.md） | 2026-10-03 |
-| iPad（iPadOS、Safari 26.6、PWA） | fp16 | WASM（fp16 は WebGPU を使わない） | 抽出のあと（トラックに分けた直後など）にタブが落ちる | **自動で int8 に替える** | 2026-10-03 |
+| iPad（iPadOS、Safari 26.6、PWA） | fp16 | WASM（fp16 は WebGPU を使わない） | 抽出のあと（トラックに分けた直後など）にタブが落ちる | CPU では WebGPU を含まない版を使う（下の節）。GPU を使う設定なら int8 に替える（GPU で動くので速い） | 2026-10-03 |
 | iPad（iPadOS、Safari 26.6、PWA） | int8・fp32 | WebGPU | 抽出できる | — | 2026-10-03 |
 
 ### iPad で fp16 が落ちる理由（見立て）
@@ -36,7 +36,7 @@
 
 | 条件 | 選んだモデル | 代わりに使うモデル |
 | --- | --- | --- |
-| iPhone・iPad（iPadOS の Safari は Mac を名乗るので、タッチの数でも見分ける） | fp16 | int8 |
+| iPhone・iPad（iPadOS の Safari は Mac を名乗るので、タッチの数でも見分ける）で、GPU を使う設定 | fp16 | int8（GPU で動く。GPU を使わない設定では替えず、fp16 を CPU で動かす） |
 
 ## まだ調べていないこと
 - Android（Chrome）での各モデル・WebGPU
