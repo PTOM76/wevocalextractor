@@ -191,7 +191,7 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                 ]}
               />
             </Row>
-            <Diagnose settings={draft} />
+            <Diagnose />
           </Group>
         ),
       })}
