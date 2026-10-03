@@ -11,9 +11,12 @@ ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーは出�
 ### WASM のスレッド数は 1 にする
 マルチスレッドには COOP/COEP ヘッダーが要り、GitHub Pages などの静的ホスティングでは設定できない。どこでも動くことを優先し、`numThreads` は 1 に固定している。
 
+### ONNX Runtime のメモリの上限は 1GB にする
+WebKit は共有メモリの上限の分を、作った時点でプロセス全体の予約の枠（iOS で約 6GB）から差し引く。ONNX Runtime は上限 4GB で作るので、iOS では枠がすぐに尽きる。ビルド時に上限を 1GB に書き換える（`ortMemory.ts`。書き換える場所が見つからなければビルドを止める） (2026-10-03)。
+
 ### 推論の Worker は止めずに使い続ける
 ONNX Runtime はスレッドを 1 にしても、上限 4GB の共有メモリ（wasm）を作る。iOS Safari はこれを同時に 2 個までしか持てず、Worker を止めてもその枠はすぐには返らない。そのため実行環境を作り直すと `RangeError: Out of memory`（no available backend found）になった。iPad の PWA で、モデルや計算の種類によらず、2 回目から失敗した。
-推論の Worker はページで 1 つだけ作り（`src/index.ts` の `sharedWorker`）、`dispose` ではセッションだけを手放す。中断は Worker を止めずに `cancel` で頼み、次のブロックで止める。調べ方は設定の「開発者向け」→「抽出の診断」（`src/diagnose.ts`） (2026-10-03)。
+推論の Worker はページで 1 つだけ作り（`src/index.ts` の `sharedWorker`）、`dispose` ではセッションだけを手放す。中断は Worker を止めずに `cancel` で頼み、次のブロックで止める。準備に失敗した Worker は捨てる（ONNX Runtime は一度 wasm の準備に失敗すると、同じ Worker では二度と準備できない）。調べ方は設定の「開発者向け」→「抽出の診断」（`src/diagnose.ts`） (2026-10-03)。
 
 ### 曲は 512 フレーム（約 12 秒）ずつ処理する
 1曲分のスペクトルを一度に持つと、スマホではタブが落ちる。ブロックごとに STFT → 推論 → マスク → 逆STFT を行い、進捗もブロックごとに知らせる。
