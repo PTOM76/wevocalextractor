@@ -13,8 +13,24 @@
 | iPad（iPadOS、Safari 26.6、PWA） | int8・fp32 | WebGPU | 抽出できる | — | 2026-10-03 |
 
 ### iPad で fp16 が落ちる理由（見立て）
-fp16 は WebGPU で動かせないので CPU（WASM）で動く。WASM は fp16 を直接計算できず、ONNX Runtime が重みや途中の値を fp32 に変換しながら計算するので、ファイルの小ささとは逆にタブのメモリを多く使う。WebGPU で動く int8・fp32 は、途中の値の多くを GPU 側に置くので、タブのメモリが足りなくなりにくい。
+いちばん当てはまるのは [onnxruntime#26827](https://github.com/microsoft/onnxruntime/issues/26827)（Safari 26.2、ONNX Runtime Web 1.20〜1.23）。WebGPU 対応版（JSEP。`ort-wasm-simd-threaded.jsep.wasm`、28MB）を使うと、推論の**あと**も CPU 400%・メモリ 1GB 以上（14GB まで増える）が続き、iOS ではタブが落ちる。Safari が wasm を裏で最適化し直す処理（`JSC::Wasm::parseAndCompileOMG`）の中で起きている。WebGPU を含まない WASM 版では起きない、とされている。
 
+- 「抽出は成功し、その直後に落ちる」のは、推論のあとに最適化し直す処理が走るためと合う
+- fp16 は CPU（WASM）で動くので wasm のコードを多く動かし、最適化し直す対象が多い。fp32・int8 は WebGPU で動き、wasm はあまり動かないので起きにくい、と合う
+- もう一つの見立て: WASM は fp16 を直接計算できず、fp32 への変換の分もタブのメモリを使う
+
+対応の候補: CPU で動かすときは、WebGPU を含まない WASM 版（`onnxruntime-web/wasm`）を使う。未対応（2026-10-03）。
+
+## ほかに報告されている問題（このモデルで起きるかは未確認）
+
+| 問題 | 条件 | 出典 |
+| --- | --- | --- |
+| WebGPU の ConvTranspose が、fp16 で出力の大きさが約 2048 を超えると誤った値になる（添字を fp16 で計算している） | fp16、WebGPU、ORT 1.25〜 | [onnxruntime#28976](https://github.com/microsoft/onnxruntime/issues/28976)。Spleeter は ConvTranspose を使うので、fp16 の WebGPU で出力が 0 になる件と関係があるかもしれない |
+| WebGPU で、入力が 8 個以上の Concat が、エラーなしにすべて 0 を返す | WebGPU | [onnxruntime#32757](https://github.com/microsoft/onnxruntime/issues/32757) |
+| fp16 のモデルが WebGPU で NaN や誤った値になる（fp16 の桁あふれ） | fp16、WebGPU | [onnxruntime#26732](https://github.com/microsoft/onnxruntime/issues/26732)、[#26367](https://github.com/microsoft/onnxruntime/issues/26367) |
+| iOS 26.3 の Safari で、WebGPU の推論を約 500 回続けると落ちる | iOS、WebGPU | [onnxruntime#27584](https://github.com/microsoft/onnxruntime/issues/27584) |
+| Adreno 750（Android）で、ORT 1.30 から GPU のプロセスが落ちる（4bit の MatMulNBits のみ。このモデルは使わない） | Android、Adreno、ORT 1.30 | [musetric#901](https://github.com/musetric/musetric/issues/901) |
+| Adreno 730（Snapdragon SM8450）で WebGPU の検証エラー | Android、Adreno 730 | [onnxruntime#21970](https://github.com/microsoft/onnxruntime/issues/21970) |
 ## 自動で替える組み合わせ
 [src/compat.ts](../src/compat.ts) の `RULES`。設定で選んだモデルが当てはまると、抽出のときだけ代わりのモデルを使う（設定は変えない）。設定の画面にもその旨を出す。
 
