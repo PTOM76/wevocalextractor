@@ -61,6 +61,8 @@
   "settings.keepNone": "Do not keep",
   "settings.groupDebug": "Developer",
   "settings.dialogWindow": "Dialog display",
+  "settings.devUpdates": "Receive development updates",
+  "settings.devUpdatesHelp": "Notify about new commits even when the version number is the same",
   "settings.memory": "Extraction memory limit",
   "settings.memoryHelp": "Lower this if extraction fails on iOS. Applies from the next extraction",
   "settings.diagnose": "Extraction diagnostics",

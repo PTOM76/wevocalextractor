@@ -61,6 +61,8 @@
   "settings.keepNone": "유지하지 않음",
   "settings.groupDebug": "개발자용",
   "settings.dialogWindow": "대화 상자 표시",
+  "settings.devUpdates": "개발 버전 업데이트 받기",
+  "settings.devUpdatesHelp": "버전이 같아도 새 커밋이 있으면 알립니다",
   "settings.memory": "추출 메모리 상한",
   "settings.memoryHelp": "iOS에서 추출할 수 없을 때 낮춥니다. 다음 추출부터 적용됩니다",
   "settings.diagnose": "추출 진단",

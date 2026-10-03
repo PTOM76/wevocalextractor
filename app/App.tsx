@@ -275,7 +275,7 @@ export default function App() {
             ['Alt / F10', t('shortcuts.menu')],
           ]}
         />
-        <UpdatePrompt build={APP_BUILD} />
+        <UpdatePrompt build={APP_BUILD} devUpdates={settings.devUpdates} />
         <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} message={toast} />
       </WindowModeContext.Provider>
       </PevenLabels.Provider>

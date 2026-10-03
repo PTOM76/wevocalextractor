@@ -61,6 +61,8 @@
   "settings.keepNone": "残さない",
   "settings.groupDebug": "開発者向け",
   "settings.dialogWindow": "ダイアログの表示",
+  "settings.devUpdates": "開発版の更新を受け取る",
+  "settings.devUpdatesHelp": "バージョンが同じでも、新しいコミットがあれば知らせる",
   "settings.memory": "抽出のメモリの上限",
   "settings.memoryHelp": "iOS で抽出できないときに下げる。次の抽出から効く",
   "settings.diagnose": "抽出の診断",

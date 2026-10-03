@@ -61,6 +61,8 @@
   "settings.keepNone": "不保留",
   "settings.groupDebug": "开发者",
   "settings.dialogWindow": "对话框显示方式",
+  "settings.devUpdates": "接收开发版更新",
+  "settings.devUpdatesHelp": "即使版本号相同，有新的提交时也会通知",
   "settings.memory": "提取的内存上限",
   "settings.memoryHelp": "在 iOS 上无法提取时调低。从下一次提取起生效",
   "settings.diagnose": "提取诊断",

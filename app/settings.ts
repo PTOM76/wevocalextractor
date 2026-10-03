@@ -29,9 +29,11 @@ export interface Settings {
   dialogWindow: WindowMode | 'auto'
   /** 抽出の実行環境の wasm のメモリの上限（MB）。iOS は上限の分を予約の枠から差し引くので、抽出できなければ下げる */
   memoryMb: number
+  /** 開発版の更新（バージョンが同じでコミットだけ違う版）も知らせる */
+  devUpdates: boolean
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded', memoryMb: 1024 }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded', memoryMb: 1024, devUpdates: false }
 
 const KEY = 'wevocalextractor.settings'
 

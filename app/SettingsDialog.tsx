@@ -19,7 +19,7 @@ const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'data.queue', 'settings.keepQueue', 'settings.keepQueueHelp'],
-  debug: ['settings.groupDebug', 'settings.dialogWindow', 'settings.memory', 'settings.memoryHelp', 'settings.diagnose', 'settings.diagnoseHelp'],
+  debug: ['settings.groupDebug', 'settings.devUpdates', 'settings.devUpdatesHelp', 'settings.dialogWindow', 'settings.memory', 'settings.memoryHelp', 'settings.diagnose', 'settings.diagnoseHelp'],
 }
 
 interface Props {
@@ -194,6 +194,7 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                 ]}
               />
             </Row>
+            <Check checked={draft.devUpdates} onChange={(v) => set({ devUpdates: v })} label={t('settings.devUpdates')} help={t('settings.devUpdatesHelp')} />
             <Row label={t('settings.memory')} help={t('settings.memoryHelp')}>
               <Choice<string>
                 value={String(draft.memoryMb)}
