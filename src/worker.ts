@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 // 推論用の Worker。STFT → 推論 → マスク → 逆STFT を 512 フレームずつ行う（1曲分のスペクトルを一度に持たないため）。
 // STFT と、マスクを掛けての逆STFT は dsp.wasm（dsp/ の Rust、wevocal-lib の STFT を使う）で行う
-import * as ort from 'onnxruntime-web'
-import type { Backend, HighBand, Stem, WorkerRequest, WorkerResponse } from './types'
+import type * as Ort from 'onnxruntime-web'
+import type { Backend, HighBand, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
 
 /** STFT の設定。dsp/src/lib.rs の N_FFT / HOP と一致させる */
 const N_FFT = 4096
@@ -24,7 +24,13 @@ interface DspExports {
   ): void
 }
 
-let sessions: { vocals: ort.InferenceSession; accompaniment: ort.InferenceSession } | null = null
+/**
+ * ONNX Runtime。WebGPU で動かすときは WebGPU 対応版（JSEP、28MB）、CPU だけなら WASM 版（14MB）を読み込む。
+ * Safari 26 は JSEP 版の wasm を推論のあとに最適化し直す処理でメモリを使い、iOS でタブが落ちた（onnxruntime#26827。docs/COMPATIBILITY.md）。
+ * どちらを読むかは最初の init の `runtime` で決まる（違う方が要るときは、index.ts が Worker を作り直す）
+ */
+let ort: typeof Ort
+let sessions: { vocals: Ort.InferenceSession; accompaniment: Ort.InferenceSession } | null = null
 let dsp: DspExports | null = null
 /** GPU で動かしているときは、出力がおかしければ CPU で作り直すためにモデルを持っておく */
 let models: { vocals: Uint8Array; accompaniment: Uint8Array } | null = null
@@ -38,10 +44,15 @@ async function loadDsp(): Promise<DspExports> {
   return instance.exports as unknown as DspExports
 }
 
-async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend, memoryMb: number) {
+async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend, memoryMb: number, runtime: Runtime, wasmUrl?: string) {
   // ONNX Runtime の wasm のメモリの上限（ortMemory.ts が書き換えた所で読む。最初の準備のときだけ効く）
   ;(globalThis as { __ortMaxPages?: number }).__ortMaxPages = Math.round(memoryMb * 16)
   // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
+  if (!ort) {
+    ort = runtime === 'gpu' ? await import('onnxruntime-web') : await import('onnxruntime-web/wasm')
+    // 追加機能として配るときは、wasm を別の追加機能に置くので場所を受け取る
+    if (wasmUrl) ort.env.wasm.wasmPaths = { wasm: wasmUrl }
+  }
   ort.env.wasm.numThreads = 1
   dsp ??= await loadDsp()
   await release()
@@ -52,7 +63,7 @@ async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Ba
 async function createSessions(backend: Backend) {
   if (!models) throw new Error('not initialized')
   // メモリを先回りして確保しない（iOS Safari はタブのメモリが少なく、先回りの確保で RangeError: Out of memory になりやすい）
-  const opts: ort.InferenceSession.SessionOptions = { executionProviders: [backend], enableCpuMemArena: false, enableMemPattern: false }
+  const opts: Ort.InferenceSession.SessionOptions = { executionProviders: [backend], enableCpuMemArena: false, enableMemPattern: false }
   sessions = {
     vocals: await ort.InferenceSession.create(models.vocals, opts),
     accompaniment: await ort.InferenceSession.create(models.accompaniment, opts),
@@ -81,7 +92,7 @@ const usable = (y: Float32Array) => {
 }
 
 /** 推論する。GPU で失敗したり出力がおかしければ、CPU で作り直してやり直す */
-async function infer(x: ort.Tensor, check: boolean): Promise<{ v: Float32Array; a: Float32Array }> {
+async function infer(x: Ort.Tensor, check: boolean): Promise<{ v: Float32Array; a: Float32Array }> {
   const s = sessions!
   try {
     const v = (await s.vocals.run({ x })).y.data as Float32Array
@@ -176,7 +187,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (req.kind === 'init') {
-        await init(req.vocals, req.accompaniment, req.backend, req.memoryMb)
+        await init(req.vocals, req.accompaniment, req.backend, req.memoryMb, req.runtime, req.wasmUrl)
         post({ id: req.id, ok: true })
       } else if (req.kind === 'release') {
         await release()

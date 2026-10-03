@@ -19,7 +19,7 @@
 - fp16 は CPU（WASM）で動くので wasm のコードを多く動かし、最適化し直す対象が多い。fp32・int8 は WebGPU で動き、wasm はあまり動かないので起きにくい、と合う
 - もう一つの見立て: WASM は fp16 を直接計算できず、fp32 への変換の分もタブのメモリを使う
 
-対応の候補: CPU で動かすときは、WebGPU を含まない WASM 版（`onnxruntime-web/wasm`）を使う。未対応（2026-10-03）。
+対応: CPU で動かすときは、WebGPU を含まない WASM 版（`onnxruntime-web/wasm`、14MB）を読み込む（`src/worker.ts`。2026-10-03）。WebGPU で動かすときだけ WebGPU 対応版（JSEP、28MB）を読み込む。WeVocalSynth では両方を別の追加機能にし、使う方だけを入れる。
 
 ## ほかに報告されている問題（このモデルで起きるかは未確認）
 

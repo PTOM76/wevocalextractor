@@ -2,9 +2,9 @@
  * WeVocalExtractor: 曲からボーカル（または伴奏）を取り出す。UI を持たず、React にも依存しない（docs/DESIGN.md。画面は app/）。
  * 受け渡しはチャンネルごとの Float32Array とサンプルレートだけ。推論は専用の Worker で行う。
  */
-import type { Backend, HighBand, Stem, WorkerRequest, WorkerResponse } from './types'
+import type { Backend, HighBand, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
 
-export type { Backend, HighBand, Stem }
+export type { Backend, HighBand, Runtime, Stem }
 
 /** モデル（Spleeter 2stems）のサンプルレート */
 const MODEL_RATE = 44100
@@ -18,6 +18,13 @@ export interface ExtractorOptions {
   memoryMb?: number
   /** 手放してから推論の Worker を止めるまでの時間（ミリ秒）。既定は `IDLE_MS`。0 ならすぐ止めてメモリを返す（メモリの少ない端末向け） */
   keepAliveMs?: number
+  /**
+   * 読み込む ONNX Runtime。省くと、WebGPU なら gpu（WebGPU 対応版）、CPU なら cpu（WASM 版）。
+   * gpu は CPU でも動くので、WebGPU で作れずに CPU で作り直すときは gpu のままでよい（Worker を作り直さずに済む）
+   */
+  runtime?: Runtime
+  /** その wasm の場所（追加機能として別の場所に置くとき。省くと同じ場所） */
+  wasmUrl?: string
 }
 
 /** ONNX Runtime の wasm のメモリの上限の既定（MB）。iOS は上限の分を予約の枠から差し引くので、4GB（元の値）より下げる */
@@ -58,7 +65,7 @@ async function convert(channels: Float32Array[], from: number, to: number, outCh
 }
 
 type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }
-type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; idle: number }
+type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; runtime: Runtime; idle: number }
 
 /** 使い終わってから推論の Worker を止めるまでの時間（ミリ秒）の既定。続けて使うときは作り直さない */
 export const IDLE_MS = 30_000
@@ -79,15 +86,15 @@ function drop(s: Shared, reason: Error) {
   if (shared === s) shared = null
 }
 
-function sharedWorker(memoryMb: number) {
-  // メモリの上限は Worker で最初に準備したときに決まるので、変えたら作り直す
-  if (shared && shared.memoryMb !== memoryMb) drop(shared, new DOMException('disposed', 'AbortError'))
+function sharedWorker(memoryMb: number, runtime: Runtime) {
+  // メモリの上限と、読み込む ONNX Runtime（WebGPU 対応版か WASM 版か。worker.ts）は Worker で最初に準備したときに決まるので、変えたら作り直す。
+  if (shared && (shared.memoryMb !== memoryMb || shared.runtime !== runtime)) drop(shared, new DOMException('disposed', 'AbortError'))
   if (shared) {
     clearTimeout(shared.idle)
     return shared
   }
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-  const s: Shared = { worker, pending: new Map(), nextId: 1, owner: null, memoryMb, idle: 0 }
+  const s: Shared = { worker, pending: new Map(), nextId: 1, owner: null, memoryMb, runtime, idle: 0 }
   worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
     const p = s.pending.get(e.data.id)
     if (!p) return
@@ -107,7 +114,8 @@ export const extractorBusy = () => !!shared?.owner
 /** 実行環境を作る。前に作ったものは使えなくなる（Worker は1つで、モデルを入れ替える） */
 export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
   const memoryMb = opts.memoryMb ?? DEFAULT_MEMORY_MB
-  const s = sharedWorker(memoryMb)
+  const runtime = opts.runtime ?? (opts.backend === 'webgpu' ? 'gpu' : 'cpu')
+  const s = sharedWorker(memoryMb, runtime)
   /** この実行環境が送った要求の id */
   const mine = new Set<number>()
   let disposed = false
@@ -125,7 +133,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
 
   // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
   try {
-    await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend, memoryMb }, [
+    await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl }, [
       opts.vocals,
       opts.accompaniment,
     ])
