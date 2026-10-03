@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
+import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmui/pwa'
 import { configureFileAccess } from 'pevenmui/web'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
@@ -85,6 +85,8 @@ export default function App() {
   // 開く画面はフォルダを覚える。最近使用したファイルの一覧はないので記録しない
   configureFileAccess({ rememberFolder: true, startFolder: 'music', recentFiles: false, pickerMode: 'auto' })
   const picker = useFilesPicker(AUDIO_ACCEPT, q.add, t('file.audioType'))
+  // 抽出中に閉じようとしたら確認する
+  useLeaveGuard(q.running, () => true)
   const hasWaiting = q.items.some((it) => it.status === 'waiting')
   const done = q.items.filter((it) => it.vocals || it.accompaniment)
 
