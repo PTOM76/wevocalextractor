@@ -27,5 +27,15 @@ for (const [kind, m] of Object.entries(MODELS)) {
   console.log(`models/${kind}`)
 }
 // 再配布するモデルのライセンスを一緒に置く（LICENSE-THIRD-PARTY.md）
+// UVR の MDX-Net（sherpa-onnx が ONNX にして配っているもの）は 1 ファイル。model.onnx に名前をそろえる
+const MDX = { 'voc-ft': 'UVR-MDX-NET-Voc_FT.onnx', 'inst-hq4': 'UVR-MDX-NET-Inst_HQ_4.onnx' }
+for (const [kind, file] of Object.entries(MDX)) {
+  const src = join(CACHE, file)
+  if (!existsSync(src)) execSync(`curl -sSfL -o "${src}" ${RELEASE}/${file}`, { stdio: 'inherit' })
+  const dir = join(OUT, kind)
+  mkdirSync(dir, { recursive: true })
+  copyFileSync(src, join(dir, 'model.onnx'))
+  console.log(`models/${kind}`)
+}
 mkdirSync(join(OUT, 'licenses'), { recursive: true })
-for (const n of ['spleeter-MIT.txt', 'sherpa-onnx-Apache-2.0.txt', 'onnxruntime-MIT.txt']) copyFileSync(join(root, 'licenses', n), join(OUT, 'licenses', n))
+for (const n of ['spleeter-MIT.txt', 'uvr-MIT.txt', 'sherpa-onnx-Apache-2.0.txt', 'onnxruntime-MIT.txt']) copyFileSync(join(root, 'licenses', n), join(OUT, 'licenses', n))

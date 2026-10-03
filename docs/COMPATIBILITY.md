@@ -11,6 +11,8 @@
 | iPad（iPadOS、Safari 26.6、PWA） | すべて | すべて | 実行環境を作り直すと `RangeError: Out of memory`（no available backend found） | wasm のメモリの上限を 1GB に下げる（DECISIONS.md） | 2026-10-03 |
 | iPad（iPadOS、Safari 26.6、PWA） | fp16 | WASM（fp16 は WebGPU を使わない） | 抽出のあと（トラックに分けた直後など）にタブが落ちる | CPU では WebGPU を含まない版を使う（下の節） | 2026-10-03 |
 | iPad（iPadOS、Safari 26.6、PWA） | int8・fp32 | WebGPU | 抽出できる | — | 2026-10-03 |
+| PC・Chrome | UVR の MDX-Net（Voc_FT・Inst_HQ_4） | WebGPU | 抽出できる（RTF 0.4〜0.6） | — | 2026-10-04 |
+| PC・Chrome | UVR の MDX-Net | WASM | 抽出できるが、曲の長さの約 10 倍かかる | 画面で知らせる | 2026-10-04 |
 
 ### iPad で fp16 が落ちる理由（見立て）
 いちばん当てはまるのは [onnxruntime#26827](https://github.com/microsoft/onnxruntime/issues/26827)（Safari 26.2、ONNX Runtime Web 1.20〜1.23）。WebGPU 対応版（JSEP。`ort-wasm-simd-threaded.jsep.wasm`、28MB）を使うと、推論の**あと**も CPU 400%・メモリ 1GB 以上（14GB まで増える）が続き、iOS ではタブが落ちる。Safari が wasm を裏で最適化し直す処理（`JSC::Wasm::parseAndCompileOMG`）の中で起きている。WebGPU を含まない WASM 版では起きない、とされている。

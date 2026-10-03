@@ -112,7 +112,7 @@ export function useQueue(settings: Settings) {
     setPhase({ kind: 'init' })
     const useGpu = settings.gpu && backendAllowed(model, 'webgpu') && (await hasWebGpu())
     // モデルは Worker に移されるので、作り直すときのために複製を渡す
-    const make = (backend: Backend) => createExtractor({ vocals: models.vocals.slice(0), accompaniment: models.accompaniment.slice(0), backend, memoryMb: settings.memoryMb })
+    const make = (backend: Backend) => createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb })
     return useGpu ? make('webgpu').catch(() => make('wasm')) : make('wasm')
   }
 

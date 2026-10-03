@@ -24,7 +24,7 @@ async function diagnose(memoryMb: number, log: (line: string) => void) {
         label: `${kind}、${backend}`,
         create: async () => {
           const m = await get()
-          return createExtractor({ vocals: m.vocals.slice(0), accompaniment: m.accompaniment.slice(0), backend, memoryMb })
+          return createExtractor({ ...m.options(), backend, memoryMb })
         },
       })
   }

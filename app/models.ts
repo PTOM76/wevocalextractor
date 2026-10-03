@@ -1,9 +1,13 @@
-import type { Stem } from '../src/index'
+import type { ExtractorOptions, Stem } from '../src/index'
+import { MDX_MODELS, type MdxModelId } from '../src/mdxModels'
 import { t, type MessageKey } from './i18n'
 import { effectiveModel } from '../src/compat'
 
-/** モデルの種類（docs/MODELS.md）。ファイルは scripts/fetch-models.mjs が public/models/<種類>/ に置く */
-export type ModelKind = 'fp16' | 'int8' | 'fp32'
+/**
+ * モデルの種類（docs/MODELS.md）。ファイルは scripts/fetch-models.mjs が public/models/<種類>/ に置く。
+ * Spleeter（fp16・int8・fp32）は vocals.onnx と accompaniment.onnx、UVR の MDX-Net（voc-ft・inst-hq4）は model.onnx
+ */
+export type ModelKind = 'fp16' | 'int8' | 'fp32' | MdxModelId
 
 /**
  * モデルの大きさ（MB）と表示する名前。端末との互換性（WebGPU を使えない、別のモデルに替える）は
@@ -13,7 +17,12 @@ export const MODELS: Record<ModelKind, { mb: number; label: MessageKey }> = {
   fp16: { mb: 38, label: 'opt.modelLight' },
   int8: { mb: 50, label: 'opt.modelStandard' },
   fp32: { mb: 75, label: 'opt.modelPrecise' },
+  'voc-ft': { mb: 64, label: 'opt.modelVocalHq' },
+  'inst-hq4': { mb: 57, label: 'opt.modelInstHq' },
 }
+
+/** UVR の MDX-Net か（CPU では曲の長さの約 10 倍かかる。docs/MODELS.md） */
+export const isMdx = (kind: ModelKind): kind is MdxModelId => kind in MDX_MODELS
 
 /** この端末で実際に使うモデル（非互換なら代わりのもの）と、替えたか */
 export function resolveModel(model: ModelKind, gpu: boolean): { model: ModelKind; replaced: boolean } {
@@ -24,7 +33,7 @@ export function resolveModel(model: ModelKind, gpu: boolean): { model: ModelKind
 /** 取得したモデルの保存先。2回目からはダウンロードせずに使う */
 const CACHE = 'wevocalextractor-models'
 
-const modelUrl = (kind: ModelKind, stem: Stem) => new URL(`${import.meta.env.BASE_URL}models/${kind}/${stem}.onnx`, location.href).href
+const modelUrl = (kind: ModelKind, file: Stem | 'model') => new URL(`${import.meta.env.BASE_URL}models/${kind}/${file}.onnx`, location.href).href
 
 /** Cache Storage が使えるか（https か localhost だけ） */
 const cacheSupported = () => typeof caches !== 'undefined'
@@ -70,18 +79,26 @@ async function download(url: string, onBytes: (n: number) => void, signal: Abort
   return buf
 }
 
-/** ボーカル用・伴奏用のモデルを取得する。`onProgress` は 0〜1 */
-export async function loadModels(kind: ModelKind, onProgress: (p: number) => void, signal: AbortSignal) {
+/** 取得したモデル。`options` は抽出の実行環境に渡すもの（Worker に移されるので、呼ぶたびに複製する） */
+export interface LoadedModel {
+  options: () => Pick<ExtractorOptions, 'vocals' | 'accompaniment' | 'mdx'>
+}
+
+/** モデルを取得する（Spleeter はボーカル用・伴奏用、MDX-Net は 1 つ）。`onProgress` は 0〜1 */
+export async function loadModels(kind: ModelKind, onProgress: (p: number) => void, signal: AbortSignal): Promise<LoadedModel> {
   const total = MODELS[kind].mb * 2 ** 20
   let done = 0
   const onBytes = (n: number) => onProgress(Math.min(1, (done += n) / total))
+  if (isMdx(kind)) {
+    const model = await download(modelUrl(kind, 'model'), onBytes, signal)
+    return { options: () => ({ mdx: { model: model.slice(0), params: MDX_MODELS[kind].params } }) }
+  }
   const [vocals, accompaniment] = await Promise.all([
     download(modelUrl(kind, 'vocals'), onBytes, signal),
     download(modelUrl(kind, 'accompaniment'), onBytes, signal),
   ])
-  return { vocals, accompaniment }
+  return { options: () => ({ vocals: vocals.slice(0), accompaniment: accompaniment.slice(0) }) }
 }
-
 /** 保存済みのモデルを消す */
 export async function clearModels() {
   if (cacheSupported()) await caches.delete(CACHE)

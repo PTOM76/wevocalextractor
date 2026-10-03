@@ -19,6 +19,13 @@ WeVocalExtractor のリポジトリには、モデルのファイルは含まな
 
 Spleeter の README は、著作権のある音源に使うときは権利者の許可を得るよう求めている。
 
+## UVR（Ultimate Vocal Remover）の MDX-Net の学習済みモデル（sherpa-onnx の ONNX 版）
+- 用途: ボーカル / 伴奏の分離のモデル（`UVR-MDX-NET-Voc_FT`、`UVR-MDX-NET-Inst_HQ_4`。[docs/MODELS.md](docs/MODELS.md)）
+- 元のモデル: Ultimate Vocal Remover（Anjok07、Aufr33 ほか UVR の開発者）。https://github.com/Anjok07/ultimatevocalremovergui
+  - ライセンス: MIT（Copyright (c) 2022 Anjok07, Aufr33）。全文: [licenses/uvr-MIT.txt](licenses/uvr-MIT.txt)
+  - 学習済みモデルについて、README に「UVR's core developers trained all of the models provided in this package (except for the Demucs v3 and v4 4-stem models)」「For all third-party application developers who wish to use our models, please honor the MIT license by providing credit to UVR and its developers」とある。この 2 つは UVR の開発者が学習させたものなので、MIT に従い、ここと画面（このアプリについて）で UVR とその開発者のクレジットを示す (2026-10-04 時点の確認)
+- ONNX への変換: sherpa-onnx（k2-fsa、Apache-2.0）。上と同じ配布ページ
+
 ## lamejs（@breezystack/lamejs）
 - 用途: MP3 の書き出し
 - ライセンス: LGPL-3.0（全文は `node_modules/@breezystack/lamejs/LICENSE`、配布元 https://github.com/nicktindall/lamejs の派生）

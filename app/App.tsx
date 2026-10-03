@@ -8,7 +8,7 @@ import { configureFileAccess } from 'pevenmui/web'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
 import { openExternal, USER_GUIDE_URL } from './links'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
-import { MODELS, resolveModel, type ModelKind } from './models'
+import { isMdx, MODELS, resolveModel, type ModelKind } from './models'
 import { QueueList, type Stem } from './QueueList'
 import SettingsDialog from './SettingsDialog'
 import { useSettings, type StemsSetting } from './settings'
@@ -62,7 +62,13 @@ export default function App() {
   const [settings, updateSettings] = useSettings()
   // この端末で使えないか向かないモデルを選んでいたら、代わりに使うモデルを出す
   const resolved = resolveModel(settings.model, settings.gpu)
-  const modelNote = resolved.replaced ? t('opt.modelReplaced', { from: t(MODELS[settings.model].label), name: t(MODELS[resolved.model].label) }) : undefined
+  // MDX-Net は CPU だととても遅いので、GPU を使わない設定や WebGPU の無いブラウザでは知らせる
+  const slowCpu = isMdx(resolved.model) && (!settings.gpu || !('gpu' in navigator))
+  const modelNote = resolved.replaced
+    ? t('opt.modelReplaced', { from: t(MODELS[settings.model].label), name: t(MODELS[resolved.model].label) })
+    : slowCpu
+      ? t('opt.modelSlowCpu')
+      : undefined
   // 子の描画より先に言語を切り替えておく（t() は描画中に参照される）
   const lang = resolveLang(settings.language)
   setLang(lang)
