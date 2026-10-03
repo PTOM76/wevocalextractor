@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
+import { AboutDialog, AppHeader, LicensesDialog, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmui/pwa'
 import { configureFileAccess } from 'pevenmui/web'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
 import { openExternal, USER_GUIDE_URL } from './links'
+import { licenseEntries } from './licenses'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
 import { isMdx, MODELS, resolveModel, type ModelKind } from './models'
 import { QueueList, type Stem } from './QueueList'
@@ -86,6 +87,7 @@ export default function App() {
     setSettingsFocus((n) => n + 1)
   }
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [licensesOpen, setLicensesOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const q = useQueue(settings)
   // 開く画面はフォルダを覚える。最近使用したファイルの一覧はないので記録しない
@@ -161,6 +163,7 @@ export default function App() {
         { label: t('menu.shortcuts'), onClick: () => setShortcutsOpen(true) },
         { divider: true },
         { label: t('menu.checkUpdate'), onClick: checkUpdate },
+        { label: t('menu.licenses'), onClick: () => setLicensesOpen(true) },
         { label: t('menu.about'), onClick: () => setAboutOpen(true) },
       ],
     },
@@ -181,6 +184,7 @@ export default function App() {
         { label: t('menu.settings'), onClick: openSettings },
         guide,
         { label: t('menu.checkUpdate'), onClick: checkUpdate },
+        { label: t('menu.licenses'), onClick: () => setLicensesOpen(true) },
         { label: t('menu.about'), onClick: () => setAboutOpen(true) },
       ],
     },
@@ -249,6 +253,7 @@ export default function App() {
         </Box>
 
         <SettingsDialog open={settingsOpen} focusSignal={settingsFocus} onClose={() => setSettingsOpen(false)} settings={settings} onChange={updateSettings} notify={setToast} />
+        <LicensesDialog open={licensesOpen} onClose={() => setLicensesOpen(false)} title={t('menu.licenses')} intro={t('licenses.intro')} entries={licenseEntries(REPOSITORY_URL)} />
         <AboutDialog
           open={aboutOpen}
           onClose={() => setAboutOpen(false)}
