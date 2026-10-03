@@ -14,7 +14,12 @@ export interface ExtractorOptions {
   vocals: ArrayBuffer
   accompaniment: ArrayBuffer
   backend: Backend
+  /** ONNX Runtime の wasm のメモリの上限（MB）。既定は `DEFAULT_MEMORY_MB`。変えると推論の Worker を作り直す */
+  memoryMb?: number
 }
+
+/** ONNX Runtime の wasm のメモリの上限の既定（MB）。iOS は上限の分を予約の枠から差し引くので、4GB（元の値）より下げる */
+export const DEFAULT_MEMORY_MB = 1024
 
 export interface SeparateOptions {
   stem: Stem
@@ -54,15 +59,20 @@ type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => voi
 
 /**
  * 推論の Worker（ページで1つ）。手放しても止めずに、次の createExtractor で使い回す。
- * iOS は上限 4GB の共有メモリ（ONNX Runtime が作る）を同時に 2 個までしか持てず、
- * 止めた Worker の分はすぐには返らないので、作り直すと RangeError: Out of memory になる
+ * iOS は共有メモリ（ONNX Runtime が作る）の上限の分を予約の枠から差し引き、止めた Worker の分はすぐには返らないので、
+ * 作り直すと RangeError: Out of memory になる
  */
-let shared: { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null } | null = null
+let shared: { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number } | null = null
 
-function sharedWorker() {
+function sharedWorker(memoryMb: number) {
+  // メモリの上限は Worker で最初に準備したときに決まるので、変えたら作り直す
+  if (shared && shared.memoryMb !== memoryMb) {
+    shared.worker.terminate()
+    shared = null
+  }
   if (shared) return shared
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-  const s = { worker, pending: new Map<number, Pending>(), nextId: 1, owner: null as object | null }
+  const s = { worker, pending: new Map<number, Pending>(), nextId: 1, owner: null as object | null, memoryMb }
   worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
     const p = s.pending.get(e.data.id)
     if (!p) return
@@ -83,7 +93,8 @@ function sharedWorker() {
 
 /** 実行環境を作る。前に作ったものは使えなくなる（Worker は1つで、モデルを入れ替える） */
 export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
-  const s = sharedWorker()
+  const memoryMb = opts.memoryMb ?? DEFAULT_MEMORY_MB
+  const s = sharedWorker(memoryMb)
   /** この実行環境が送った要求の id（手放すときに止める） */
   const mine = new Set<number>()
   let disposed = false
@@ -101,7 +112,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
 
   // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
   try {
-    await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend }, [
+    await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend, memoryMb }, [
       opts.vocals,
       opts.accompaniment,
     ])

@@ -61,6 +61,8 @@
   "settings.keepNone": "Do not keep",
   "settings.groupDebug": "Developer",
   "settings.dialogWindow": "Dialog display",
+  "settings.memory": "Extraction memory limit",
+  "settings.memoryHelp": "Lower this if extraction fails on iOS. Applies from the next extraction",
   "settings.diagnose": "Extraction diagnostics",
   "settings.diagnoseHelp": "Checks on this device why extraction runs out of memory. Select and copy the result to report it",
   "settings.diagnoseRun": "Run",

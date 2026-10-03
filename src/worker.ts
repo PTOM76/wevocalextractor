@@ -38,7 +38,9 @@ async function loadDsp(): Promise<DspExports> {
   return instance.exports as unknown as DspExports
 }
 
-async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend) {
+async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend, memoryMb: number) {
+  // ONNX Runtime の wasm のメモリの上限（ortMemory.ts が書き換えた所で読む。最初の準備のときだけ効く）
+  ;(globalThis as { __ortMaxPages?: number }).__ortMaxPages = Math.round(memoryMb * 16)
   // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
   ort.env.wasm.numThreads = 1
   dsp ??= await loadDsp()
@@ -180,7 +182,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (req.kind === 'init') {
-        await init(req.vocals, req.accompaniment, req.backend)
+        await init(req.vocals, req.accompaniment, req.backend, req.memoryMb)
         post({ id: req.id, ok: true })
       } else if (req.kind === 'release') {
         await release()

@@ -61,6 +61,8 @@
   "settings.keepNone": "不保留",
   "settings.groupDebug": "开发者",
   "settings.dialogWindow": "对话框显示方式",
+  "settings.memory": "提取的内存上限",
+  "settings.memoryHelp": "在 iOS 上无法提取时调低。从下一次提取起生效",
   "settings.diagnose": "提取诊断",
   "settings.diagnoseHelp": "在此设备上检查提取内存不足的原因。选择并复制结果，粘贴到报告中",
   "settings.diagnoseRun": "诊断",

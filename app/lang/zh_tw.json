@@ -61,6 +61,8 @@
   "settings.keepNone": "不保留",
   "settings.groupDebug": "開發人員",
   "settings.dialogWindow": "對話框顯示方式",
+  "settings.memory": "擷取的記憶體上限",
+  "settings.memoryHelp": "在 iOS 上無法擷取時調低。從下一次擷取起生效",
   "settings.diagnose": "擷取診斷",
   "settings.diagnoseHelp": "在此裝置上檢查擷取記憶體不足的原因。選取並複製結果，貼到回報中",
   "settings.diagnoseRun": "診斷",

@@ -27,9 +27,11 @@ export interface Settings {
   keepQueue: KeepMode
   /** ダイアログの出し方。auto は PWA かつ Chromium 系ならポップアップ、ほかはダイアログ。別窓を開けなければダイアログ */
   dialogWindow: WindowMode | 'auto'
+  /** 抽出の実行環境の wasm のメモリの上限（MB）。iOS は上限の分を予約の枠から差し引くので、抽出できなければ下げる */
+  memoryMb: number
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded' }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded', memoryMb: 1024 }
 
 const KEY = 'wevocalextractor.settings'
 

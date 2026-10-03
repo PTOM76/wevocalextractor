@@ -6,7 +6,8 @@ export type Stem = 'vocals' | 'accompaniment'
 export type HighBand = 'zeros' | 'edge'
 
 export type WorkerRequest =
-  | { kind: 'init'; id: number; vocals: ArrayBuffer; accompaniment: ArrayBuffer; backend: Backend }
+  /** `memoryMb` は ONNX Runtime の wasm のメモリの上限（最初の init のときだけ効く） */
+  | { kind: 'init'; id: number; vocals: ArrayBuffer; accompaniment: ArrayBuffer; backend: Backend; memoryMb: number }
   /** `stems` の順に、それぞれの音（ステレオ）を返す。推論は1回で済む */
   | { kind: 'separate'; id: number; channels: Float32Array[]; stems: Stem[]; highBand: HighBand }
   /** セッションを手放す（Worker と wasm のメモリは残して、次の init で使い回す） */

@@ -61,6 +61,8 @@
   "settings.keepNone": "残さない",
   "settings.groupDebug": "開発者向け",
   "settings.dialogWindow": "ダイアログの表示",
+  "settings.memory": "抽出のメモリの上限",
+  "settings.memoryHelp": "iOS で抽出できないときに下げる。次の抽出から効く",
   "settings.diagnose": "抽出の診断",
   "settings.diagnoseHelp": "抽出がメモリ不足になる原因を、この端末で確かめる。結果を選んでコピーし、報告に貼る",
   "settings.diagnoseRun": "診断する",

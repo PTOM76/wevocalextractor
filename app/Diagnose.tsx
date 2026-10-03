@@ -7,7 +7,7 @@ import { useT } from './i18n'
 import { loadModels, MODELS, type ModelKind } from './models'
 
 /** 診断を行い、結果を1行ずつ `log` に渡す（内容は src/diagnose.ts。WeVocalSynth と同じ） */
-async function diagnose(log: (line: string) => void) {
+async function diagnose(memoryMb: number, log: (line: string) => void) {
   diagnoseEnv(log)
   await diagnoseMemory(log)
   // モデル 3 種類と、WebGPU を使う / 使わないの 6 通り（fp16 の WebGPU は出力が 0 になるが、作れるかは試す）
@@ -22,14 +22,14 @@ async function diagnose(log: (line: string) => void) {
         label: `${kind}、${backend}`,
         create: async () => {
           const m = await get()
-          return createExtractor({ vocals: m.vocals.slice(0), accompaniment: m.accompaniment.slice(0), backend })
+          return createExtractor({ vocals: m.vocals.slice(0), accompaniment: m.accompaniment.slice(0), backend, memoryMb })
         },
       })
   }
   await diagnoseRuntime(patterns, log)
 }
 /** 設定の開発者向け「抽出の診断」。結果は選んでコピーできる（不具合の報告に貼る） */
-export default function Diagnose() {
+export default function Diagnose({ memoryMb }: { memoryMb: number }) {
   const t = useT()
   const hit = useHighlighter()
   const [lines, setLines] = useState<string[]>([])
@@ -38,7 +38,7 @@ export default function Diagnose() {
     setRunning(true)
     setLines([])
     try {
-      await diagnose((line) => setLines((l) => [...l, line]))
+      await diagnose(memoryMb, (line) => setLines((l) => [...l, line]))
     } catch (e) {
       setLines((l) => [...l, String(e)])
     } finally {

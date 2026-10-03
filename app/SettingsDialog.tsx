@@ -11,12 +11,15 @@ import { DEFAULT_SETTINGS, type Settings, type ThemeSetting } from './settings'
 
 type Category = 'general' | 'extract' | 'data' | 'debug'
 
+/** 抽出の実行環境のメモリの上限の選択肢（MB） */
+const MEMORY_MB = [256, 512, 1024, 2048, 4096]
+
 /** 設定の検索の対象: 分類ごとのグループ名・項目名・説明文の訳文キー。項目を足したらここにも足す */
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'data.queue', 'settings.keepQueue', 'settings.keepQueueHelp'],
-  debug: ['settings.groupDebug', 'settings.dialogWindow', 'settings.diagnose', 'settings.diagnoseHelp'],
+  debug: ['settings.groupDebug', 'settings.dialogWindow', 'settings.memory', 'settings.memoryHelp', 'settings.diagnose', 'settings.diagnoseHelp'],
 }
 
 interface Props {
@@ -191,7 +194,14 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                 ]}
               />
             </Row>
-            <Diagnose />
+            <Row label={t('settings.memory')} help={t('settings.memoryHelp')}>
+              <Choice<string>
+                value={String(draft.memoryMb)}
+                onChange={(v) => set({ memoryMb: Number(v) })}
+                options={MEMORY_MB.map((mb): [string, string] => [String(mb), mb < 1024 ? `MB` : `GB`])}
+              />
+            </Row>
+            <Diagnose memoryMb={draft.memoryMb} />
           </Group>
         ),
       })}

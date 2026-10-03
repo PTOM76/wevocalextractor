@@ -12,7 +12,7 @@ ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーは出�
 マルチスレッドには COOP/COEP ヘッダーが要り、GitHub Pages などの静的ホスティングでは設定できない。どこでも動くことを優先し、`numThreads` は 1 に固定している。
 
 ### ONNX Runtime のメモリの上限は 1GB にする
-WebKit は共有メモリの上限の分を、作った時点でプロセス全体の予約の枠（iOS で約 6GB）から差し引く。ONNX Runtime は上限 4GB で作るので、iOS では枠がすぐに尽きる。ビルド時に上限を 1GB に書き換える（`ortMemory.ts`。書き換える場所が見つからなければビルドを止める） (2026-10-03)。
+WebKit は共有メモリの上限の分を、作った時点でプロセス全体の予約の枠（iOS で約 6GB）から差し引く。ONNX Runtime は上限 4GB で作るので、iOS では枠がすぐに尽きる。ビルド時に、Worker が渡す上限を使うよう書き換え（`ortMemory.ts`。書き換える場所が見つからなければビルドを止める）、既定は 1GB にする。設定の「開発者向け」→「抽出のメモリの上限」で変えられる（変えると Worker を作り直す） (2026-10-03)。
 
 ### 推論の Worker は止めずに使い続ける
 ONNX Runtime はスレッドを 1 にしても、上限 4GB の共有メモリ（wasm）を作る。iOS Safari はこれを同時に 2 個までしか持てず、Worker を止めてもその枠はすぐには返らない。そのため実行環境を作り直すと `RangeError: Out of memory`（no available backend found）になった。iPad の PWA で、モデルや計算の種類によらず、2 回目から失敗した。
