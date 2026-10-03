@@ -38,6 +38,8 @@
   "menu.settings": "Settings…",
   "menu.help": "Help",
   "menu.shortcuts": "Keyboard shortcuts",
+  "menu.userGuide": "User guide",
+  "menu.checkUpdate": "Check for updates",
   "menu.about": "About",
   "empty.formats": "WAV / AIFF / MP3 / MP4 etc. (drag & drop supported)",
   "empty.choose": "Choose a file",

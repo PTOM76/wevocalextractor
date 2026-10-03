@@ -3,8 +3,9 @@ import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snac
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
 import { AboutDialog, AppHeader, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
-import { UpdatePrompt, formatBuild } from 'pevenmui/pwa'
+import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmui/pwa'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
+import { openExternal, USER_GUIDE_URL } from './links'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
 import type { ModelKind } from './models'
 import { QueueList, type Stem } from './QueueList'
@@ -115,6 +116,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // 新しい版があれば、右下の通知（UpdatePrompt）からそのまま更新できる。ここでは結果だけを知らせる
+  const checkUpdate = () =>
+    void checkForUpdate().then((r) => {
+      if (r.kind === 'found') return promptUpdate(r.build)
+      const l = LABELS[lang]
+      setToast({ latest: l.updateLatest, unsupported: l.updateUnsupported, failed: l.updateFailed }[r.kind])
+    })
+  const runEntries = [
+    { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.run() },
+    { label: t('menu.clear'), disabled: !q.items.length, onClick: q.clear },
+  ]
+  const guide = { label: t('menu.userGuide'), onClick: () => openExternal(USER_GUIDE_URL) }
+  // WeVocalSynth と同じ並び。設定はファイルに、更新の確認はヘルプに置く
   const menus: MenuGroup[] = [
     {
       label: t('menu.file'),
@@ -123,34 +137,49 @@ export default function App() {
         { label: t('menu.add'), shortcut: 'Ctrl+O', onClick: openFiles },
         { divider: true },
         { label: t('menu.saveAll'), disabled: !done.length, onClick: () => void saveAll() },
-      ],
-    },
-    {
-      label: t('menu.tools'),
-      accessKey: 'T',
-      entries: [
-        { label: t('menu.runAll'), disabled: q.running || !hasWaiting, onClick: () => void q.run() },
-        { label: t('menu.clear'), disabled: !q.items.length, onClick: q.clear },
         { divider: true },
         { label: t('menu.settings'), onClick: openSettings },
       ],
     },
+    { label: t('menu.tools'), accessKey: 'T', entries: runEntries },
     {
       label: t('menu.help'),
       accessKey: 'H',
       entries: [
+        guide,
         { label: t('menu.shortcuts'), onClick: () => setShortcutsOpen(true) },
+        { divider: true },
+        { label: t('menu.checkUpdate'), onClick: checkUpdate },
         { label: t('menu.about'), onClick: () => setAboutOpen(true) },
       ],
     },
   ]
-
+  // スマホの ⋮ は WeVocalSynth と同じく、設定をヘルプに置き、ショートカット一覧は出さない
+  const mobileMenus: MenuGroup[] = [
+    {
+      label: t('menu.file'),
+      entries: [
+        { label: t('menu.add'), onClick: openFiles },
+        { label: t('menu.saveAll'), disabled: !done.length, onClick: () => void saveAll() },
+      ],
+    },
+    { label: t('menu.tools'), entries: runEntries },
+    {
+      label: t('menu.help'),
+      entries: [
+        { label: t('menu.settings'), onClick: openSettings },
+        guide,
+        { label: t('menu.checkUpdate'), onClick: checkUpdate },
+        { label: t('menu.about'), onClick: () => setAboutOpen(true) },
+      ],
+    },
+  ]
   return (
     <LangContext.Provider value={lang}>
       <PevenLabels.Provider value={LABELS[lang]}>
       <WindowModeContext.Provider value={settings.dialogWindow === 'auto' ? autoWindowMode() : settings.dialogWindow}>
         <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
-          <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={menus} />
+          <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={mobile ? mobileMenus : menus} />
           <input
             ref={inputRef}
             type="file"

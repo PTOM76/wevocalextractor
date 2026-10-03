@@ -38,6 +38,8 @@
   "menu.settings": "設定…",
   "menu.help": "ヘルプ",
   "menu.shortcuts": "ショートカット一覧",
+  "menu.userGuide": "ユーザーガイド",
+  "menu.checkUpdate": "更新を確認",
   "menu.about": "このアプリについて",
   "empty.formats": "WAV / AIFF / MP3 / MP4 など（ドラッグ＆ドロップ可）",
   "empty.choose": "ファイルを選択",

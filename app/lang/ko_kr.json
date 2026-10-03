@@ -38,6 +38,8 @@
   "menu.settings": "설정…",
   "menu.help": "도움말",
   "menu.shortcuts": "단축키 목록",
+  "menu.userGuide": "사용자 가이드",
+  "menu.checkUpdate": "업데이트 확인",
   "menu.about": "이 앱에 대하여",
   "empty.formats": "WAV / AIFF / MP3 / MP4 등 (드래그 앤 드롭 가능)",
   "empty.choose": "파일 선택",

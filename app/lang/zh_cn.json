@@ -38,6 +38,8 @@
   "menu.settings": "设置…",
   "menu.help": "帮助",
   "menu.shortcuts": "快捷键列表",
+  "menu.userGuide": "使用指南",
+  "menu.checkUpdate": "检查更新",
   "menu.about": "关于",
   "empty.formats": "WAV / AIFF / MP3 / MP4 等（可拖放）",
   "empty.choose": "选择文件",
