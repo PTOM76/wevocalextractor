@@ -1,13 +1,24 @@
 import type { Stem } from '../src/index'
-import { t } from './i18n'
+import { t, type MessageKey } from './i18n'
+import { effectiveModel } from '../src/compat'
 
 /** モデルの種類（docs/MODELS.md）。ファイルは scripts/fetch-models.mjs が public/models/<種類>/ に置く */
 export type ModelKind = 'fp16' | 'int8' | 'fp32'
 
-export const MODELS: Record<ModelKind, { mb: number; webgpu: boolean }> = {
-  fp16: { mb: 38, webgpu: false },
-  int8: { mb: 50, webgpu: true },
-  fp32: { mb: 75, webgpu: true },
+/**
+ * モデルの大きさ（MB）と表示する名前。端末との互換性（WebGPU を使えない、別のモデルに替える）は
+ * src/compat.ts にまとめる（モデルを足したら、ここと互換性の表に足す）
+ */
+export const MODELS: Record<ModelKind, { mb: number; label: MessageKey }> = {
+  fp16: { mb: 38, label: 'opt.modelLight' },
+  int8: { mb: 50, label: 'opt.modelStandard' },
+  fp32: { mb: 75, label: 'opt.modelPrecise' },
+}
+
+/** この端末で実際に使うモデル（非互換なら代わりのもの）と、替えたか */
+export function resolveModel(model: ModelKind): { model: ModelKind; replaced: boolean } {
+  const r = effectiveModel(model, Object.keys(MODELS))
+  return { model: r.model as ModelKind, replaced: r.reason !== null }
 }
 
 /** 取得したモデルの保存先。2回目からはダウンロードせずに使う */

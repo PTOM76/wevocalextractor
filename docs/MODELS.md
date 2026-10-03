@@ -1,5 +1,6 @@
 # モデル
 WeVocalExtractor で使うモデル（Spleeter 2stems）と、その入出力、測った値、今後の候補をまとめる。(2026-10-01 時点)
+端末・ブラウザとの互換性（動かない組み合わせと、自動で替えるもの）は [COMPATIBILITY.md](COMPATIBILITY.md) に記録する。
 
 ## Spleeter 2stems（sherpa-onnx の ONNX 版）
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases/tag/source-separation-models) が ONNX に変換して配布しているものを、そのまま使う。変換の作業（Python・TensorFlow）は要らない。

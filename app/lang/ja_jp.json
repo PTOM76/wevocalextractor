@@ -7,6 +7,7 @@
   "menu.runAll": "すべて抽出",
   "menu.clear": "一覧を空にする",
   "opt.model": "モデル",
+  "opt.modelReplaced": "この端末とは非互換のため、「{name}」で抽出します",
   "opt.modelLight": "軽量",
   "opt.modelStandard": "標準",
   "opt.modelPrecise": "高精度",

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createExtractor, type Backend, type Extractor } from '../src/index'
 import { EXPORT_EXT, MP3_SAMPLE_RATES, OPUS_SAMPLE_RATE, decodeFile, exportAudio, type Clip } from 'wevocal-lib'
-import { hasWebGpu, loadModels, MODELS } from './models'
+import { hasWebGpu, loadModels, resolveModel } from './models'
+import { backendAllowed } from '../src/compat'
 import type { Settings } from './settings'
 import { clearQueue, loadQueue, putItem, signature, toStored } from './persist'
 
@@ -105,9 +106,11 @@ export function useQueue(settings: Settings) {
   /** モデルを読み込んで Extractor を作る（WebGPU で作れなければ CPU で作り直す） */
   const create = async (signal: AbortSignal): Promise<Extractor> => {
     setPhase({ kind: 'model', progress: 0 })
-    const models = await loadModels(settings.model, (p) => setPhase({ kind: 'model', progress: p }), signal)
+    // この端末と非互換のモデルなら、代わりのモデルで抽出する（src/compat.ts。設定は変えない）
+    const model = resolveModel(settings.model).model
+    const models = await loadModels(model, (p) => setPhase({ kind: 'model', progress: p }), signal)
     setPhase({ kind: 'init' })
-    const useGpu = settings.gpu && MODELS[settings.model].webgpu && (await hasWebGpu())
+    const useGpu = settings.gpu && backendAllowed(model, 'webgpu') && (await hasWebGpu())
     // モデルは Worker に移されるので、作り直すときのために複製を渡す
     const make = (backend: Backend) => createExtractor({ vocals: models.vocals.slice(0), accompaniment: models.accompaniment.slice(0), backend, memoryMb: settings.memoryMb })
     return useGpu ? make('webgpu').catch(() => make('wasm')) : make('wasm')

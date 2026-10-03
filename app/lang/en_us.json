@@ -7,6 +7,7 @@
   "menu.runAll": "Extract all",
   "menu.clear": "Clear list",
   "opt.model": "Model",
+  "opt.modelReplaced": "Incompatible with this device; {name} is used instead",
   "opt.modelLight": "Light",
   "opt.modelStandard": "Standard",
   "opt.modelPrecise": "Precise",

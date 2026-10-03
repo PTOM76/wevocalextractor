@@ -7,7 +7,7 @@ import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmu
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
 import { openExternal, USER_GUIDE_URL } from './links'
 import { LangContext, resolveLang, setLang, t, type MessageKey } from './i18n'
-import type { ModelKind } from './models'
+import { MODELS, resolveModel, type ModelKind } from './models'
 import { QueueList, type Stem } from './QueueList'
 import SettingsDialog from './SettingsDialog'
 import { useSettings, type StemsSetting } from './settings'
@@ -22,11 +22,7 @@ const APP_BUILD = formatBuild(__APP_VERSION__, __APP_COMMIT__)
 /** アプリのアイコン（public/icon.svg）。GitHub Pages ではサブパスで配信されるため BASE_URL から組み立てる */
 const AppIcon = ({ size }: { size: number }) => <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" width={size} height={size} style={{ display: 'block' }} />
 
-const MODEL_OPTIONS: [ModelKind, MessageKey][] = [
-  ['fp16', 'opt.modelLight'],
-  ['int8', 'opt.modelStandard'],
-  ['fp32', 'opt.modelPrecise'],
-]
+const MODEL_OPTIONS = (Object.keys(MODELS) as ModelKind[]).map((m): [ModelKind, MessageKey] => [m, MODELS[m].label])
 const FORMAT_OPTIONS: [ExportFormat, MessageKey][] = [
   ['wav', 'opt.formatWav'],
   ['mp3', 'opt.formatMp3'],
@@ -45,7 +41,7 @@ const baseName = (name: string) => name.replace(/\.[^.]+$/, '')
 const outName = (item: QueueItem, stem: Stem) => `${baseName(item.file.name)}_${stem}${item.ext ?? '.wav'}`
 
 /** 操作の帯に置く選択欄（ラベル付き） */
-function OptionSelect<T extends string>(p: { label: string; value: T; disabled: boolean; options: [T, MessageKey][]; onChange: (v: T) => void }) {
+function OptionSelect<T extends string>(p: { label: string; value: T; disabled: boolean; options: [T, MessageKey][]; onChange: (v: T) => void; note?: string }) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <Typography sx={{ fontSize: 13, color: 'text.secondary', whiteSpace: 'nowrap' }}>{p.label}</Typography>
@@ -56,12 +52,16 @@ function OptionSelect<T extends string>(p: { label: string; value: T; disabled: 
           </MenuItem>
         ))}
       </Select>
+      {p.note && <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{p.note}</Typography>}
     </Box>
   )
 }
 
 export default function App() {
   const [settings, updateSettings] = useSettings()
+  // この端末と非互換のモデルを選んでいたら、代わりに使うモデルを出す
+  const resolved = resolveModel(settings.model)
+  const modelNote = resolved.replaced ? t('opt.modelReplaced', { name: t(MODELS[resolved.model].label) }) : undefined
   // 子の描画より先に言語を切り替えておく（t() は描画中に参照される）
   const lang = resolveLang(settings.language)
   setLang(lang)
@@ -194,7 +194,7 @@ export default function App() {
 
           {/* 操作の帯: モデル・抽出するもの・形式と、一覧への操作 */}
           <Paper square elevation={0} sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 1, flexWrap: 'wrap', borderBottom: 1, borderColor: 'divider' }}>
-            <OptionSelect label={t('opt.model')} value={settings.model} disabled={q.running} options={MODEL_OPTIONS} onChange={(model) => updateSettings({ model })} />
+            <OptionSelect label={t('opt.model')} value={settings.model} disabled={q.running} options={MODEL_OPTIONS} onChange={(model) => updateSettings({ model })} note={modelNote} />
             <OptionSelect label={t('opt.stems')} value={settings.stems} disabled={q.running} options={STEMS_OPTIONS} onChange={(stems) => updateSettings({ stems })} />
             <OptionSelect label={t('opt.format')} value={settings.format} disabled={q.running} options={FORMAT_OPTIONS} onChange={(format) => updateSettings({ format })} />
             <Box sx={{ display: 'flex', gap: 1, ml: mobile ? 0 : 'auto' }}>
