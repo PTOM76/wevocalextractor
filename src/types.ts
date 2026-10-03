@@ -9,6 +9,10 @@ export type WorkerRequest =
   | { kind: 'init'; id: number; vocals: ArrayBuffer; accompaniment: ArrayBuffer; backend: Backend }
   /** `stems` の順に、それぞれの音（ステレオ）を返す。推論は1回で済む */
   | { kind: 'separate'; id: number; channels: Float32Array[]; stems: Stem[]; highBand: HighBand }
+  /** セッションを手放す（Worker と wasm のメモリは残して、次の init で使い回す） */
+  | { kind: 'release'; id: number }
+  /** 処理中の separate を、次のブロックで止める */
+  | { kind: 'cancel'; id: number; target: number }
 
 export type WorkerResponse =
   | { id: number; ok: true }

@@ -50,39 +50,60 @@ async function convert(channels: Float32Array[], from: number, to: number, outCh
   return Array.from({ length: outCh }, (_, i) => out.getChannelData(i))
 }
 
-export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
+type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }
+
+/**
+ * 推論の Worker（ページで1つ）。手放しても止めずに、次の createExtractor で使い回す。
+ * iOS は上限 4GB の共有メモリ（ONNX Runtime が作る）を同時に 2 個までしか持てず、
+ * 止めた Worker の分はすぐには返らないので、作り直すと RangeError: Out of memory になる
+ */
+let shared: { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null } | null = null
+
+function sharedWorker() {
+  if (shared) return shared
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-  let nextId = 1
-  const pending = new Map<number, { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }>()
+  const s = { worker, pending: new Map<number, Pending>(), nextId: 1, owner: null as object | null }
   worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-    const p = pending.get(e.data.id)
+    const p = s.pending.get(e.data.id)
     if (!p) return
     if ('progress' in e.data) return p.onProgress?.(e.data.progress)
-    pending.delete(e.data.id)
+    s.pending.delete(e.data.id)
     if ('error' in e.data) p.reject(new Error(e.data.error))
     else p.resolve(e.data)
   }
+  // Worker が落ちたら、次は作り直す
   worker.onerror = (e) => {
-    pending.forEach((p) => p.reject(new Error(e.message || 'extractor worker error')))
-    pending.clear()
+    s.pending.forEach((p) => p.reject(new Error(e.message || 'extractor worker error')))
+    s.pending.clear()
+    worker.terminate()
+    if (shared === s) shared = null
   }
+  return (shared = s)
+}
+
+/** 実行環境を作る。前に作ったものは使えなくなる（Worker は1つで、モデルを入れ替える） */
+export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
+  const s = sharedWorker()
+  /** この実行環境が送った要求の id（手放すときに止める） */
+  const mine = new Set<number>()
+  let disposed = false
+  // Worker のモデルの持ち主。あとから作ったものに入れ替わっていたら、手放すときにモデルを消さない
+  const token = {}
+  s.owner = token
   const send = (req: WorkerRequest, transfer: Transferable[], onProgress?: (p: number) => void) =>
     new Promise<WorkerResponse>((resolve, reject) => {
-      pending.set(req.id, { resolve, reject, onProgress })
-      worker.postMessage(req, transfer)
+      if (disposed) return reject(new DOMException('disposed', 'AbortError'))
+      mine.add(req.id)
+      const done = () => mine.delete(req.id)
+      s.pending.set(req.id, { resolve: (r) => (done(), resolve(r)), reject: (e) => (done(), reject(e)), onProgress })
+      s.worker.postMessage(req, transfer)
     })
 
-  try {
-    // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
-    await send({ kind: 'init', id: nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend }, [
-      opts.vocals,
-      opts.accompaniment,
-    ])
-  } catch (e) {
-    worker.terminate()
-    throw e
-  }
-
+  // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
+  await send({ kind: 'init', id: s.nextId++, vocals: opts.vocals, accompaniment: opts.accompaniment, backend: opts.backend }, [
+    opts.vocals,
+    opts.accompaniment,
+  ])
   /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
   const run = async (channels: Float32Array[], sampleRate: number, stems: Stem[], o: Omit<SeparateOptions, 'stem'>) => {
     const n = channels[0].length
@@ -90,7 +111,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     // 変換しなかった場合は呼び出し元の配列なので、コピーしてから Worker に移す
     const owned = input === channels ? input.map((c) => c.slice()) : input
     const res = await send(
-      { kind: 'separate', id: nextId++, channels: owned, stems, highBand: o.highBand ?? 'zeros' },
+      { kind: 'separate', id: s.nextId++, channels: owned, stems, highBand: o.highBand ?? 'zeros' },
       owned.map((c) => c.buffer),
       o.onProgress,
     )
@@ -119,10 +140,15 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
       return { vocals, accompaniment }
     },
     dispose() {
-      worker.terminate()
-      // 処理中の separate は待ち続けないよう失敗させる（中断に使える）
-      pending.forEach((p) => p.reject(new DOMException('disposed', 'AbortError')))
-      pending.clear()
-    },
-  }
+      if (disposed) return
+      disposed = true
+      // 処理中の separate は待ち続けないよう失敗させ（中断に使える）、Worker には止めて手放すよう頼む
+      for (const id of mine) {
+        s.worker.postMessage({ kind: 'cancel', id: s.nextId++, target: id } satisfies WorkerRequest)
+        s.pending.get(id)?.reject(new DOMException('disposed', 'AbortError'))
+        s.pending.delete(id)
+      }
+      mine.clear()
+      if (s.owner === token) s.worker.postMessage({ kind: 'release', id: s.nextId++ } satisfies WorkerRequest)
+    },  }
 }

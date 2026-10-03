@@ -41,7 +41,8 @@ async function loadDsp(): Promise<DspExports> {
 async function init(vocals: ArrayBuffer, accompaniment: ArrayBuffer, backend: Backend) {
   // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
   ort.env.wasm.numThreads = 1
-  dsp = await loadDsp()
+  dsp ??= await loadDsp()
+  await release()
   models = { vocals: new Uint8Array(vocals), accompaniment: new Uint8Array(accompaniment) }
   await createSessions(backend)
 }
@@ -58,6 +59,17 @@ async function createSessions(backend: Backend) {
   // CPU で動かすなら、作り直しに使うことはないので手放す
   if (backend === 'wasm') models = null
 }
+
+/** セッションを手放す。wasm のメモリ（ONNX Runtime と dsp.wasm）は残す */
+async function release() {
+  const s = sessions
+  sessions = null
+  models = null
+  if (s) await Promise.all([s.vocals.release(), s.accompaniment.release()])
+}
+
+/** 止めるよう頼まれた separate の id */
+const cancelled = new Set<number>()
 
 /** 出力が使えるか（端末の GPU によっては、すべて 0 や NaN になることがある） */
 const usable = (y: Float32Array) => {
@@ -118,6 +130,7 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
   try {
     for (let c = 0; c < 2; c++) view(input[c], len).set(ch[c], N_FFT)
     for (let f0 = 0; f0 < frames; f0 += SPLIT) {
+      if (cancelled.delete(id)) throw new Error('cancelled')
       const count = Math.min(SPLIT, frames - f0)
       // 最後のブロックは短いので、残りのフレームを 0 にしておく
       view(mag, 2 * block).fill(0)
@@ -155,16 +168,30 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
   }
 }
 
-self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
+/**
+ * 要求は届いた順に1つずつ行う（処理中に手放されないように）。止める要求だけはすぐに受け付ける。
+ * Worker は止めずに使い続ける。iOS は上限 4GB の共有メモリを同時に 2 個までしか持てず、
+ * 止めた Worker の分はすぐには返らないので、作り直すと Out of memory になる（docs/DECISIONS.md）
+ */
+let queue = Promise.resolve()
+self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   const req = e.data
-  try {
-    if (req.kind === 'init') {
-      await init(req.vocals, req.accompaniment, req.backend)
-      post({ id: req.id, ok: true })
-    } else {
-      await separate(req.id, req.channels, req.stems, req.highBand)
+  if (req.kind === 'cancel') return void cancelled.add(req.target)
+  queue = queue.then(async () => {
+    try {
+      if (req.kind === 'init') {
+        await init(req.vocals, req.accompaniment, req.backend)
+        post({ id: req.id, ok: true })
+      } else if (req.kind === 'release') {
+        await release()
+        post({ id: req.id, ok: true })
+      } else {
+        await separate(req.id, req.channels, req.stems, req.highBand)
+      }
+    } catch (err) {
+      post({ id: req.id, error: String(err) })
+    } finally {
+      if (req.kind === 'separate') cancelled.delete(req.id)
     }
-  } catch (err) {
-    post({ id: req.id, error: String(err) })
-  }
+  })
 }
