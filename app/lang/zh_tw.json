@@ -69,6 +69,7 @@
   "stem.vocals": "人聲",
   "stem.accompaniment": "伴奏",
   "error.failed": "擷取失敗：{message}",
+  "error.noAdapter": "無法使用 WebGPU（瀏覽器可能封鎖了本網站的 WebGPU，完全結束並重新開啟瀏覽器可能會解決）",
   "error.gpuFallback": "無法使用 GPU 處理（{reason}）。要用 CPU 繼續嗎？CPU 處理需要更長時間（高品質模型約為歌曲長度的 10 倍）",
   "error.gpuFallbackOk": "用 CPU 繼續",
   "error.modelMissing": "找不到模型",

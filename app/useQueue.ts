@@ -4,6 +4,7 @@ import { EXPORT_EXT, MP3_SAMPLE_RATES, OPUS_SAMPLE_RATE, decodeFile, exportAudio
 import { hasWebGpu, loadModels, resolveModel } from './models'
 import { backendAllowed } from '../src/compat'
 import type { Settings } from './settings'
+import { t } from './i18n'
 import { clearQueue, loadQueue, putItem, signature, toStored } from './persist'
 
 /** `cancelled` はその曲だけ中止したもの（保存するときは待機中として残す） */
@@ -125,6 +126,9 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
     // モデルは Worker に移されるので、作り直すときのために複製を渡す
     const make = (backend: Backend) =>
       createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb, onGpuFallback: backend === 'webgpu' ? confirmCpu : undefined })
+    // GPU を使う設定で、ブラウザに WebGPU があるのに使えない（アダプターが取れない）ときも、黙って CPU にしない
+    if (!useGpu && settings.gpu && 'gpu' in navigator && backendAllowed(model, 'webgpu') && !(await confirmCpu(t('error.noAdapter'))))
+      throw new DOMException('cancelled', 'AbortError')
     if (!useGpu) return make('wasm')
     // WebGPU で作れなければ、確かめてから CPU で作り直す
     return make('webgpu').catch(async (e: unknown) => {

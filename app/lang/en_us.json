@@ -69,6 +69,7 @@
   "stem.vocals": "Vocals",
   "stem.accompaniment": "Accompaniment",
   "error.failed": "Extraction failed: {message}",
+  "error.noAdapter": "WebGPU is not available (the browser may have blocked WebGPU for this site; fully restarting the browser may fix it)",
   "error.gpuFallback": "Could not process on the GPU ({reason}). Continue on the CPU? This takes longer (about 10 times the song length with high-quality models)",
   "error.gpuFallbackOk": "Continue on CPU",
   "error.modelMissing": "Model not found",

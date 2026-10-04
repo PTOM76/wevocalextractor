@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Box, Button, Typography } from '@mui/material'
 import { useHighlighter } from 'pevenmui'
 import { createExtractor, extractorBusy, type Backend } from '../src/index'
-import { diagnoseEnv, diagnoseMemory, diagnoseRuntime, webGpuAvailable, type RuntimePattern } from '../src/diagnose'
+import { diagnoseEnv, diagnoseWebGpu, diagnoseMemory, diagnoseRuntime, webGpuAvailable, type RuntimePattern } from '../src/diagnose'
 import { useT } from './i18n'
 import { loadModels, MODELS, type ModelKind } from './models'
 
@@ -11,6 +11,7 @@ async function diagnose(memoryMb: number, log: (line: string) => void) {
   // 抽出中に作ると、抽出のモデルを入れ替えてしまう
   if (extractorBusy()) return log('抽出中のため診断できません。抽出が終わってから実行してください')
   diagnoseEnv(log)
+  await diagnoseWebGpu(log)
   await diagnoseMemory(log)
   // モデル 3 種類と、WebGPU を使う / 使わないの 6 通り（fp16 の WebGPU は出力が 0 になるが、作れるかは試す）
   const backends: Backend[] = (await webGpuAvailable()) ? ['wasm', 'webgpu'] : ['wasm']

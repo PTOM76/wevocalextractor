@@ -71,6 +71,33 @@ export function diagnoseEnv(log: Log) {
   if (perf.memory) log(`JS ヒープ: ${(perf.memory.usedJSHeapSize / 2 ** 20).toFixed(0)}MB / ${(perf.memory.jsHeapSizeLimit / 2 ** 20).toFixed(0)}MB`)
 }
 
+type GpuAdapter = { info?: { vendor?: string; architecture?: string; device?: string; description?: string }; limits?: { maxBufferSize?: number; maxStorageBufferBindingSize?: number } }
+type Gpu = { requestAdapter(o?: { powerPreference?: 'high-performance' | 'low-power' }): Promise<GpuAdapter | null> }
+
+/**
+ * WebGPU: アダプターが取れるか（既定と高性能の指定で）、取れたら GPU の名前と、1 つのバッファーの大きさの上限。
+ * Chrome は、あるサイトで GPU のデバイスが何度も失われると、ブラウザを再起動するまでそのサイトの requestAdapter に null を返す
+ * （chrome://gpu では WebGPU が使える表示のまま）
+ */
+export async function diagnoseWebGpu(log: Log) {
+  log('--- WebGPU')
+  const gpu = (navigator as Navigator & { gpu?: Gpu }).gpu
+  if (!gpu) return log('navigator.gpu が無い（このブラウザは WebGPU に対応していない）')
+  for (const [label, opts] of [['既定', undefined], ['高性能を指定', { powerPreference: 'high-performance' as const }]] as const) {
+    try {
+      const a = await gpu.requestAdapter(opts)
+      if (!a) {
+        log(`${label}: requestAdapter が null（WebGPU を使えない。ブラウザがこのサイトの WebGPU を止めている可能性。ブラウザを完全に終了して開き直す）`)
+        continue
+      }
+      const name = [a.info?.vendor, a.info?.architecture, a.info?.device, a.info?.description].filter(Boolean).join(' / ') || '（名前なし）'
+      const mb = (n?: number) => (n ? `${Math.round(n / 2 ** 20)}MB` : '?')
+      log(`${label}: OK（${name}。maxBufferSize ${mb(a.limits?.maxBufferSize)}、maxStorageBufferBindingSize ${mb(a.limits?.maxStorageBufferBindingSize)}）`)
+    } catch (e) {
+      log(`${label}: 例外 ${String(e)}`)
+    }
+  }
+}
 /** wasm のメモリ: 作れるか、同時にいくつ持てるか、どこまで増やせるか、止めた Worker の分がいつ返るか */
 export async function diagnoseMemory(log: Log) {
   log('--- wasm のメモリ（使い捨ての Worker の中）')

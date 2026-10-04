@@ -13,6 +13,7 @@
 | iPad（iPadOS、Safari 26.6、PWA） | int8・fp32 | WebGPU | 抽出できる | — | 2026-10-03 |
 | PC・Chrome | UVR の MDX-Net（Voc_FT・Inst_HQ_4） | WebGPU | 抽出できる（RTF 0.4〜0.6） | — | 2026-10-04 |
 | PC・Chrome | UVR の MDX-Net | WASM | 抽出できるが、曲の長さの約 10 倍かかる | 画面で知らせる | 2026-10-04 |
+| PC・Chrome 154（Windows、GTX 1050 Ti） | UVR の MDX-Net | WebGPU | 前日は抽出できたが、翌日はこのサイトの `requestAdapter()` が null になり、黙って CPU で動いて遅くなった。chrome://gpu は WebGPU が使える表示のまま。Chrome を再起動したら直った | Chrome は、GPU のデバイスが何度も失われたサイトの WebGPU を、再起動まで止める。止められていたら、診断に「requestAdapter が null」と出し、抽出の前に「WebGPU を使用できません…CPU で続けますか？」と尋ねる | 2026-10-04 |
 
 ### iPad で fp16 が落ちる理由（見立て）
 いちばん当てはまるのは [onnxruntime#26827](https://github.com/microsoft/onnxruntime/issues/26827)（Safari 26.2、ONNX Runtime Web 1.20〜1.23）。WebGPU 対応版（JSEP。`ort-wasm-simd-threaded.jsep.wasm`、28MB）を使うと、推論の**あと**も CPU 400%・メモリ 1GB 以上（14GB まで増える）が続き、iOS ではタブが落ちる。Safari が wasm を裏で最適化し直す処理（`JSC::Wasm::parseAndCompileOMG`）の中で起きている。WebGPU を含まない WASM 版では起きない、とされている。
