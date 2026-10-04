@@ -67,6 +67,8 @@
   "stem.vocals": "人聲",
   "stem.accompaniment": "伴奏",
   "error.failed": "擷取失敗：{message}",
+  "error.gpuFallback": "無法使用 GPU 處理（{reason}）。要用 CPU 繼續嗎？CPU 處理需要更長時間（高品質模型約為歌曲長度的 10 倍）",
+  "error.gpuFallbackOk": "用 CPU 繼續",
   "error.modelMissing": "找不到模型",
   "settings.title": "設定",
   "settings.cat.general": "一般",

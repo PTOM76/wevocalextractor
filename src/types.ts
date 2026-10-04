@@ -22,11 +22,16 @@ export interface MdxParams {
 /** 推論に使うモデル。Spleeter はボーカル用と伴奏用の 2 つ、MDX-Net は 1 つ */
 export type ModelData = { kind: 'spleeter'; vocals: ArrayBuffer; accompaniment: ArrayBuffer } | { kind: 'mdx'; model: ArrayBuffer; params: MdxParams }
 
+/** `askFallback` のとき、GPU で処理できなかったら、このエラー（後ろに理由）で知らせる */
+export const GPU_FALLBACK = 'GPU_FALLBACK:'
+
 export type WorkerRequest =
   /** `memoryMb` は ONNX Runtime の wasm のメモリの上限、`runtime` は読み込む版、`wasmUrl` はその wasm の場所（省くと同じ場所）。どれも最初の init のときだけ効く */
-  | { kind: 'init'; id: number; model: ModelData; backend: Backend; memoryMb: number; runtime: Runtime; wasmUrl?: string }
+  | { kind: 'init'; id: number; model: ModelData; backend: Backend; memoryMb: number; runtime: Runtime; wasmUrl?: string; askFallback?: boolean }
   /** `stems` の順に、それぞれの音（ステレオ）を返す。推論は1回で済む */
   | { kind: 'separate'; id: number; channels: Float32Array[]; stems: Stem[]; highBand: HighBand }
+  /** GPU で処理できなかったあと、CPU で作り直す（`askFallback` のとき。呼び出し側が確かめてから送る） */
+  | { kind: 'useCpu'; id: number }
   /** セッションを手放す（Worker は残して、次の init で使い回す） */
   | { kind: 'release'; id: number }
 

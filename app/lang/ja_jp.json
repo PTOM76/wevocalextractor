@@ -67,6 +67,8 @@
   "stem.vocals": "ボーカル",
   "stem.accompaniment": "伴奏",
   "error.failed": "抽出できませんでした: {message}",
+  "error.gpuFallback": "GPU で処理できませんでした（{reason}）。CPU で続けますか？ CPU では時間がかかります（高品質モデルは曲の長さの約 10 倍）",
+  "error.gpuFallbackOk": "CPU で続ける",
   "error.modelMissing": "モデルが見つかりません",
   "settings.title": "設定",
   "settings.cat.general": "全般",

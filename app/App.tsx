@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, LicensesDialog, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
+import { AboutDialog, AppHeader, LicensesDialog, useConfirm, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmui/pwa'
 import { configureFileAccess } from 'pevenmui/web'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
@@ -89,7 +89,10 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false)
   const [licensesOpen, setLicensesOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const q = useQueue(settings)
+  // GPU で処理できなかったら、CPU で続けるかを尋ねる（CPU では MDX-Net が曲の長さの約 10 倍かかる）
+  const { confirm, dialog: confirmDialog } = useConfirm()
+  const confirmCpu = (reason: string) => confirm({ message: t('error.gpuFallback', { reason }), okLabel: t('error.gpuFallbackOk') })
+  const q = useQueue(settings, confirmCpu)
   // 開く画面はフォルダを覚える。最近使用したファイルの一覧はないので記録しない
   configureFileAccess({ rememberFolder: true, startFolder: 'music', recentFiles: false, pickerMode: 'auto' })
   const picker = useFilesPicker(AUDIO_ACCEPT, q.add, t('file.audioType'))
@@ -253,6 +256,7 @@ export default function App() {
         </Box>
 
         <SettingsDialog open={settingsOpen} focusSignal={settingsFocus} onClose={() => setSettingsOpen(false)} settings={settings} onChange={updateSettings} notify={setToast} />
+        {confirmDialog}
         <LicensesDialog open={licensesOpen} onClose={() => setLicensesOpen(false)} title={t('menu.licenses')} intro={t('licenses.intro')} entries={licenseEntries(REPOSITORY_URL)} />
         <AboutDialog
           open={aboutOpen}

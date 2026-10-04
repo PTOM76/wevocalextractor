@@ -41,7 +41,10 @@ function outputRate(format: Settings['format'], rate: number) {
  * 複数の曲を1曲ずつ順に抽出する。モデルは最初に1回読み込み、一覧が終わるまで使い回す。
  * 終わったら Worker ごと解放する（推論中は数百MB使うため、持ち続けない）
  */
-export function useQueue(settings: Settings) {
+/**
+ * `confirmCpu` は、GPU で処理できなかったときに CPU で続けるかを尋ねる（`reason` は理由。偽なら中断）
+ */
+export function useQueue(settings: Settings, confirmCpu: (reason: string) => Promise<boolean>) {
   const [items, setItems] = useState<QueueItem[]>([])
   const [phase, setPhase] = useState<Phase>(null)
   const [error, setError] = useState<string | null>(null)
@@ -112,8 +115,14 @@ export function useQueue(settings: Settings) {
     setPhase({ kind: 'init' })
     const useGpu = settings.gpu && backendAllowed(model, 'webgpu') && (await hasWebGpu())
     // モデルは Worker に移されるので、作り直すときのために複製を渡す
-    const make = (backend: Backend) => createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb })
-    return useGpu ? make('webgpu').catch(() => make('wasm')) : make('wasm')
+    const make = (backend: Backend) =>
+      createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb, onGpuFallback: backend === 'webgpu' ? confirmCpu : undefined })
+    if (!useGpu) return make('wasm')
+    // WebGPU で作れなければ、確かめてから CPU で作り直す
+    return make('webgpu').catch(async (e: unknown) => {
+      if (!(await confirmCpu(String(e)))) throw new DOMException('cancelled', 'AbortError')
+      return make('wasm')
+    })
   }
 
   /** 待機中の曲を上から順に抽出する。`only` を渡すとその曲だけ（失敗した曲のやり直しにも使う） */

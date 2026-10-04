@@ -2,7 +2,7 @@
  * WeVocalExtractor: 曲からボーカル（または伴奏）を取り出す。UI を持たず、React にも依存しない（docs/DESIGN.md。画面は app/）。
  * 受け渡しはチャンネルごとの Float32Array とサンプルレートだけ。推論は専用の Worker で行う。
  */
-import type { Backend, HighBand, MdxParams, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
+import { GPU_FALLBACK, type Backend, type HighBand, type MdxParams, type Runtime, type Stem, type WorkerRequest, type WorkerResponse } from './types'
 
 export type { Backend, HighBand, MdxParams, Runtime, Stem }
 
@@ -27,6 +27,11 @@ export interface ExtractorOptions {
   runtime?: Runtime
   /** その wasm の場所（追加機能として別の場所に置くとき。省くと同じ場所） */
   wasmUrl?: string
+  /**
+   * WebGPU の推論に失敗したとき（出力が 0 や NaN のときも）、CPU に切り替える前に呼ぶ。`reason` は理由。
+   * 真を返したら CPU で作り直してその曲をやり直し、偽なら中断（AbortError）。省くと尋ねずに CPU に切り替える
+   */
+  onGpuFallback?: (reason: string) => Promise<boolean>
 }
 
 /** ONNX Runtime の wasm のメモリの上限の既定（MB）。iOS は上限の分を予約の枠から差し引くので、4GB（元の値）より下げる */
@@ -143,7 +148,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
   // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
   try {
     await send(
-      { kind: 'init', id: s.nextId++, model, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl },
+      { kind: 'init', id: s.nextId++, model, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl, askFallback: !!opts.onGpuFallback },
       model.kind === 'mdx' ? [model.model] : [model.vocals, model.accompaniment],
     )
   } catch (e) {
@@ -152,17 +157,29 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     if (s.owner === token) s.owner = null
     drop(s, new DOMException('disposed', 'AbortError'))
     throw e
-  }  /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
+  }
+
+  /** `stems` の音を、入力と同じサンプルレート・チャンネル数・長さで返す */
   const run = async (channels: Float32Array[], sampleRate: number, stems: Stem[], o: Omit<SeparateOptions, 'stem'>) => {
     const n = channels[0].length
     const input = await convert(channels, sampleRate, MODEL_RATE, 2)
-    // 変換しなかった場合は呼び出し元の配列なので、コピーしてから Worker に移す
-    const owned = input === channels ? input.map((c) => c.slice()) : input
-    const res = await send(
-      { kind: 'separate', id: s.nextId++, channels: owned, stems, highBand: o.highBand ?? 'zeros' },
-      owned.map((c) => c.buffer),
-      o.onProgress,
-    )
+    const once = () => {
+      // Worker に移すので、毎回複製する（GPU で失敗したらやり直すため、変換した入力も残しておく）
+      const owned = input.map((c) => c.slice())
+      return send({ kind: 'separate', id: s.nextId++, channels: owned, stems, highBand: o.highBand ?? 'zeros' }, owned.map((c) => c.buffer), o.onProgress)
+    }
+    let res: WorkerResponse
+    try {
+      res = await once()
+    } catch (e) {
+      // GPU で処理できなかった。確かめてから CPU で作り直し、最初からやり直す
+      const msg = String(e)
+      const at = msg.indexOf(GPU_FALLBACK)
+      if (at < 0 || !opts.onGpuFallback) throw e
+      if (!(await opts.onGpuFallback(msg.slice(at + GPU_FALLBACK.length)))) throw new DOMException('cancelled', 'AbortError')
+      await send({ kind: 'useCpu', id: s.nextId++ }, [])
+      res = await once()
+    }
     if (!('stems' in res)) throw new Error('unexpected response')
     // 1 つずつ変換する（同時に行うと、変換の途中の複製が音の数だけ重なり、iOS でタブが落ちた）
     const out: Float32Array[][] = []

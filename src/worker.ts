@@ -3,7 +3,7 @@
 // - Spleeter: STFT → 推論（ボーカル用・伴奏用）→ マスク → 逆STFT を 512 フレームずつ（1曲分のスペクトルを一度に持たないため）
 // - MDX-Net: 区間ごとに STFT → 推論（取り出す音の複素スペクトログラム）→ 逆STFT。もう一方の音は元の音から引く（mdx.ts）
 import type * as Ort from 'onnxruntime-web'
-import type { Backend, HighBand, MdxParams, ModelData, Runtime, Stem, WorkerRequest, WorkerResponse } from './types'
+import { GPU_FALLBACK, type Backend, type HighBand, type MdxParams, type ModelData, type Runtime, type Stem, type WorkerRequest, type WorkerResponse } from './types'
 import { separateMdx } from './mdx'
 
 /** STFT の設定。dsp/src/lib.rs の N_FFT / HOP と一致させる */
@@ -41,6 +41,8 @@ let dsp: DspExports | null = null
 /** GPU で動かしているときは、出力がおかしければ CPU で作り直すためにモデルを持っておく */
 let model: ModelData | null = null
 let current: Backend = 'wasm'
+/** GPU で処理できなかったら、CPU に切り替える前に呼び出し側に知らせる（`GPU_FALLBACK`） */
+let askFallback = false
 
 const post = (res: WorkerResponse, transfer: Transferable[] = []) => (self as unknown as DedicatedWorkerGlobalScope).postMessage(res, transfer)
 
@@ -50,7 +52,8 @@ async function loadDsp(): Promise<DspExports> {
   return instance.exports as unknown as DspExports
 }
 
-async function init(m: ModelData, backend: Backend, memoryMb: number, runtime: Runtime, wasmUrl?: string) {
+async function init(m: ModelData, backend: Backend, memoryMb: number, runtime: Runtime, wasmUrl?: string, ask = false) {
+  askFallback = ask
   // ONNX Runtime の wasm のメモリの上限（ortMemory.ts が書き換えた所で読む。最初の準備のときだけ効く）
   ;(globalThis as { __ortMaxPages?: number }).__ortMaxPages = Math.round(memoryMb * 16)
   // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
@@ -77,7 +80,7 @@ async function createSessions(backend: Backend) {
       ? { kind: 'spleeter', vocals: await create(m.vocals), accompaniment: await create(m.accompaniment) }
       : { kind: 'mdx', session: await create(m.model), params: m.params }
   current = backend
-  // CPU で動かすなら、作り直しに使うことはないので手放す
+  // CPU で動かすなら、作り直しに使うことはないので手放す（知らせるときは、確かめたあとでも作り直せるよう持っておく）
   if (backend === 'wasm') model = null
 }
 
@@ -108,11 +111,13 @@ async function guarded<T extends Float32Array[]>(run: () => Promise<T>, check: b
   try {
     const out = await run()
     if (!check || current !== 'webgpu' || out.every(usable)) {
-      if (check) model = null
+      if (check && !askFallback) model = null
       return out
     }
+    if (askFallback) throw new Error(`${GPU_FALLBACK}output is not usable`)
   } catch (e) {
-    if (current !== 'webgpu') throw e
+    if (current !== 'webgpu' || String(e).includes(GPU_FALLBACK)) throw e
+    if (askFallback) throw new Error(`${GPU_FALLBACK}${String(e)}`)
   }
   await createSessions('wasm')
   return run()
@@ -216,7 +221,10 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (req.kind === 'init') {
-        await init(req.model, req.backend, req.memoryMb, req.runtime, req.wasmUrl)
+        await init(req.model, req.backend, req.memoryMb, req.runtime, req.wasmUrl, req.askFallback)
+        post({ id: req.id, ok: true })
+      } else if (req.kind === 'useCpu') {
+        await createSessions('wasm')
         post({ id: req.id, ok: true })
       } else if (req.kind === 'release') {
         await release()
