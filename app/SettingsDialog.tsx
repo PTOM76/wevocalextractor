@@ -39,7 +39,8 @@ function DataRow(p: { label: string; help: string; confirmMessage: string; onDel
   const hit = useHighlighter()
   const { confirm, dialog } = useConfirm()
   return (
-    <Box sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 2 }}>
+    // 幅 0 + 最小幅 100%: 長い説明文で項目名の列が広がり、選択欄が縮まないようにする
+    <Box sx={{ gridColumn: '1 / -1', width: 0, minWidth: '100%', display: 'flex', alignItems: 'center', gap: 2 }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: 13, width: 'fit-content', ...hit(p.label, p.help) }}>{p.label}</Typography>
         <Typography className="selectable" sx={{ fontSize: 11, color: 'text.secondary' }}>
