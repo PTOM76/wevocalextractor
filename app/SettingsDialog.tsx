@@ -21,9 +21,9 @@ const UI_SCALES = [0.9, 1, 1.1, 1.25, 1.5]
 /** 設定の検索の対象: 分類ごとのグループ名・項目名・説明文の訳文キー。項目を足したらここにも足す */
 const INDEX: Record<Category, MessageKey[]> = {
   general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.uiScale', 'settings.uiScaleHelp', 'settings.groupUpdate'],
-  extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
+  extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp', 'settings.memory', 'settings.memoryHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'data.queue', 'settings.keepQueue', 'settings.keepQueueHelp'],
-  debug: ['settings.groupDebug', 'settings.devUpdates', 'settings.devUpdatesHelp', 'settings.dialogWindow', 'settings.memory', 'settings.memoryHelp', 'settings.diagnose', 'settings.diagnoseHelp'],
+  debug: ['settings.groupDebug', 'settings.devUpdates', 'settings.devUpdatesHelp', 'settings.dialogWindow', 'settings.diagnose', 'settings.diagnoseHelp'],
 }
 
 interface Props {
@@ -176,6 +176,14 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
               help={backendAllowed(draft.model, 'webgpu') ? t('settings.gpuHelp') : t('settings.gpuUnsupported')}
             />
             <Check checked={draft.highBand} onChange={(v) => set({ highBand: v })} label={t('settings.highBand')} help={t('settings.highBandHelp')} />
+            {/* 抽出の動きを変える設定なので、開発者向けではなくここに置く（iPad などで抽出できないときに下げる） */}
+            <Row label={t('settings.memory')} help={t('settings.memoryHelp')}>
+              <Choice<string>
+                value={String(draft.memoryMb)}
+                onChange={(v) => set({ memoryMb: Number(v) })}
+                options={MEMORY_MB.map((mb): [string, string] => [String(mb), mb < 1024 ? `${mb} MB` : `${mb / 1024} GB`])}
+              />
+            </Row>
           </Group>
           </>
         ),
@@ -214,13 +222,6 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
               />
             </Row>
             <Check checked={draft.devUpdates} onChange={(v) => set({ devUpdates: v })} label={t('settings.devUpdates')} help={t('settings.devUpdatesHelp')} />
-            <Row label={t('settings.memory')} help={t('settings.memoryHelp')}>
-              <Choice<string>
-                value={String(draft.memoryMb)}
-                onChange={(v) => set({ memoryMb: Number(v) })}
-                options={MEMORY_MB.map((mb): [string, string] => [String(mb), mb < 1024 ? `MB` : `GB`])}
-              />
-            </Row>
             <Diagnose memoryMb={draft.memoryMb} />
           </Group>
         ),
