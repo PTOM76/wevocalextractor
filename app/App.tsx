@@ -237,7 +237,7 @@ export default function App() {
               </Alert>
             )}
             {q.items.length ? (
-              <QueueList items={q.items} busy={q.running} onSave={save} onExtract={(id) => void q.run(id)} onRemove={q.remove} />
+              <QueueList items={q.items} busy={q.running} onSave={save} onExtract={(id) => void q.run(id)} onRemove={q.remove} onCancel={q.cancelItem} />
             ) : (
               // ファイルを追加する前の画面（WeVocalSynth の EmptyState と同じ形）
               <Stack spacing={2} sx={{ flex: 1, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>

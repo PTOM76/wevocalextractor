@@ -57,6 +57,8 @@ export function QueueList(p: {
   /** その曲だけ抽出する（待機中・失敗した曲） */
   onExtract: (id: number) => void
   onRemove: (id: number) => void
+  /** 抽出中の曲だけを中止する */
+  onCancel: (id: number) => void
 }) {
   const t = useT()
   const player = usePreviewPlayer()
@@ -98,14 +100,19 @@ export function QueueList(p: {
                   </Box>
                 )
               })}
-              {(it.status === 'waiting' || it.status === 'error') && (
+              {(it.status === 'waiting' || it.status === 'error' || it.status === 'cancelled') && (
                 <Button size="small" variant="outlined" disabled={p.busy} onClick={() => p.onExtract(it.id)}>
                   {t('queue.extract')}
                 </Button>
               )}
-              <Tooltip title={t('item.remove')}>
+              {/* 抽出中の曲は、一覧から消す代わりにその曲だけ中止する */}
+              <Tooltip title={t(it.status === 'running' ? 'item.cancel' : 'item.remove')}>
                 <span>
-                  <IconButton size="small" disabled={it.status === 'running'} onClick={() => p.onRemove(it.id)}>
+                  <IconButton
+                    size="small"
+                    aria-label={t(it.status === 'running' ? 'item.cancel' : 'item.remove')}
+                    onClick={() => (it.status === 'running' ? p.onCancel(it.id) : p.onRemove(it.id))}
+                  >
                     <FontAwesomeIcon icon={faXmark} fontSize={12} />
                   </IconButton>
                 </span>

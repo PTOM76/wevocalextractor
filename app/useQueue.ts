@@ -6,7 +6,8 @@ import { backendAllowed } from '../src/compat'
 import type { Settings } from './settings'
 import { clearQueue, loadQueue, putItem, signature, toStored } from './persist'
 
-export type ItemStatus = 'waiting' | 'running' | 'done' | 'error'
+/** `cancelled` はその曲だけ中止したもの（保存するときは待機中として残す） */
+export type ItemStatus = 'waiting' | 'running' | 'done' | 'error' | 'cancelled'
 
 /** 一覧の1曲 */
 export interface QueueItem {
@@ -51,6 +52,8 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
   const itemsRef = useRef(items)
   itemsRef.current = items
   const abortRef = useRef<AbortController | null>(null)
+  /** 抽出中の曲と、その曲だけを止める関数（`cancelItem`） */
+  const currentRef = useRef<{ id: number; stop: () => void } | null>(null)
   const [running, setRunning] = useState(false)
 
   // 画面を離れるときは処理を止める
@@ -60,7 +63,11 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
   const written = useRef(new Map<number, string>())
   // 前回の一覧を戻す（読み終わる前に足された曲は後ろに並べる）。読み終わるまでは書き込まない
   const [restored, setRestored] = useState(false)
+  // 戻すのは 1 回だけ（開発中の StrictMode は 2 回呼ぶ。2 回足すと同じ曲が 2 つ並んだ）
+  const restoringRef = useRef(false)
   useEffect(() => {
+    if (restoringRef.current) return
+    restoringRef.current = true
     // 残さない設定なら戻さず、前に残したものも消す
     if (settings.keepQueue === 'none') {
       void clearQueue().then(() => setRestored(true))
@@ -69,7 +76,8 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
     void loadQueue().then((saved) => {
       nextId = Math.max(nextId, ...saved.map((it) => it.id + 1))
       saved.forEach((it) => written.current.set(it.id, signature(toStored(it, 'all'))))
-      setItems((list) => [...saved, ...list])
+      // すでに一覧にある曲は足さない
+      setItems((list) => [...saved.filter((s) => !list.some((it) => it.id === s.id)), ...list])
       setRestored(true)
     })
     // 起動時の設定で1回だけ決める
@@ -148,6 +156,20 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
           only === undefined ? itemsRef.current.find((it) => it.status === 'waiting') : onlyLeft ? itemsRef.current.find((it) => it.id === only) : undefined
         onlyLeft = false
         if (!item || ac.signal.aborted) break
+        // その曲だけ中止したあとは実行環境を止めているので、作り直す
+        if (!ex) {
+          ex = await create(ac.signal)
+          setPhase({ kind: 'separate' })
+        }
+        const current = ex
+        let cancelled = false
+        currentRef.current = {
+          id: item.id,
+          stop: () => {
+            cancelled = true
+            current.dispose()
+          },
+        }
         // 抽出し直すときは、前の結果のダウンロード済みの印も消す
         patch(item.id, { status: 'running', progress: 0, error: undefined, saved: undefined })
         try {
@@ -159,16 +181,21 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
           }
           const ext = EXPORT_EXT[settings.format]
           if (settings.stems === 'both') {
-            const r = await ex.separateBoth(clip.channels, clip.sampleRate, { highBand, onProgress })
+            const r = await current.separateBoth(clip.channels, clip.sampleRate, { highBand, onProgress })
             patch(item.id, { status: 'done', ext, vocals: await encode(r.vocals), accompaniment: await encode(r.accompaniment) })
           } else {
-            const r = await ex.separate(clip.channels, clip.sampleRate, { stem: settings.stems, highBand, onProgress })
+            const r = await current.separate(clip.channels, clip.sampleRate, { stem: settings.stems, highBand, onProgress })
             patch(item.id, { status: 'done', ext, [settings.stems]: await encode(r) })
           }
         } catch (e) {
-          // 中止したときは待機中に戻す（もう一度「すべて抽出する」で続きから）
+          // 一覧ごと中止したときは待機中に戻す（もう一度「すべて抽出する」で続きから）。その曲だけ中止したら中止にして次へ
           if (ac.signal.aborted) patch(item.id, { status: 'waiting', progress: 0 })
-          else patch(item.id, { status: 'error', error: e instanceof Error ? e.message : String(e) })
+          else if (cancelled) {
+            patch(item.id, { status: 'cancelled', progress: 0 })
+            ex = null
+          } else patch(item.id, { status: 'error', error: e instanceof Error ? e.message : String(e) })
+        } finally {
+          currentRef.current = null
         }
       }
     } catch (e) {
@@ -184,6 +211,11 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
   }
 
   const cancel = () => abortRef.current?.abort()
+  /** 曲 `id` だけを中止する。抽出中なら止めて次の曲へ、待機中なら飛ばす */
+  const cancelItem = (id: number) => {
+    if (currentRef.current?.id === id) currentRef.current.stop()
+    else patch(id, { status: 'cancelled', progress: 0 })
+  }
 
-  return { items, phase, error, running, add, remove, clear, run, cancel, markSaved }
+  return { items, phase, error, running, add, remove, clear, run, cancel, cancelItem, markSaved }
 }
