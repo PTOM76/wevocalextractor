@@ -105,6 +105,8 @@
   "settings.themeLight": "ライト",
   "settings.themeDark": "ダーク",
   "settings.language": "言語",
+  "settings.uiScale": "画面の大きさ",
+  "settings.uiScaleHelp": "文字、入力欄、ボタンなどをまとめて拡大、縮小します",
   "settings.languageAuto": "自動（ブラウザに合わせる）",
   "settings.groupUpdate": "アップデート",
   "settings.groupExtract": "ボーカル抽出",

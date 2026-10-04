@@ -15,9 +15,12 @@ type Category = 'general' | 'extract' | 'data' | 'debug'
 /** 抽出の実行環境のメモリの上限の選択肢（MB） */
 const MEMORY_MB = [256, 512, 1024, 2048, 4096]
 
+/** 画面の大きさの選択肢（倍率） */
+const UI_SCALES = [0.9, 1, 1.1, 1.25, 1.5]
+
 /** 設定の検索の対象: 分類ごとのグループ名・項目名・説明文の訳文キー。項目を足したらここにも足す */
 const INDEX: Record<Category, MessageKey[]> = {
-  general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.groupUpdate'],
+  general: ['settings.groupAppearance', 'settings.theme', 'settings.language', 'settings.uiScale', 'settings.uiScaleHelp', 'settings.groupUpdate'],
   extract: ['settings.groupExport', 'settings.wavFormat', 'settings.kbps', 'settings.groupExtract', 'settings.gpu', 'settings.gpuHelp', 'settings.highBand', 'settings.highBandHelp'],
   data: ['settings.groupData', 'data.models', 'data.modelsHelp', 'data.queue', 'settings.keepQueue', 'settings.keepQueueHelp'],
   debug: ['settings.groupDebug', 'settings.devUpdates', 'settings.devUpdatesHelp', 'settings.dialogWindow', 'settings.memory', 'settings.memoryHelp', 'settings.diagnose', 'settings.diagnoseHelp'],
@@ -126,6 +129,13 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                   value={draft.language}
                   onChange={(v) => set({ language: v })}
                   options={[['auto', t('settings.languageAuto')], ...LANG_NAMES]}
+                />
+              </Row>
+              <Row label={t('settings.uiScale')} help={t('settings.uiScaleHelp')}>
+                <Choice<string>
+                  value={String(draft.uiScale)}
+                  onChange={(v) => set({ uiScale: Number(v) })}
+                  options={UI_SCALES.map((s): [string, string] => [String(s), `%`])}
                 />
               </Row>
             </Group>

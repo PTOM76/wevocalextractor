@@ -105,6 +105,8 @@
   "settings.themeLight": "浅色",
   "settings.themeDark": "深色",
   "settings.language": "语言",
+  "settings.uiScale": "界面大小",
+  "settings.uiScaleHelp": "统一放大或缩小文字、输入框、按钮等",
   "settings.languageAuto": "自动（浏览器语言）",
   "settings.groupUpdate": "更新",
   "settings.groupExtract": "人声提取",

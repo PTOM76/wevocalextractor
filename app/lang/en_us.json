@@ -105,6 +105,8 @@
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
   "settings.language": "Language",
+  "settings.uiScale": "Display size",
+  "settings.uiScaleHelp": "Scales text, inputs, buttons, and everything else together",
   "settings.languageAuto": "Auto (browser)",
   "settings.groupUpdate": "Updates",
   "settings.groupExtract": "Vocal extraction",

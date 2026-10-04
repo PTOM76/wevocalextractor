@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Box, Button, LinearProgress, Link, MenuItem, Paper, Select, Snackbar, Stack, Typography, useColorScheme } from '@mui/material'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDownload, faFileArrowUp, faFolderOpen, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { AboutDialog, AppHeader, LicensesDialog, useConfirm, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
+import { AboutDialog, AppHeader, LicensesDialog, useConfirm, PevenLabels, ShortcutsDialog, LABELS, useFilesDrop, useFilesPicker, setUiScale, FULL_HEIGHT, useLeaveGuard, useMobileLayout, WindowModeContext, autoWindowMode, type MenuGroup } from 'pevenmui'
 import { UpdatePrompt, checkForUpdate, formatBuild, promptUpdate } from 'pevenmui/pwa'
 import { configureFileAccess } from 'pevenmui/web'
 import { AUDIO_ACCEPT, downloadBlob, type ExportFormat } from 'wevocal-lib'
@@ -76,6 +76,7 @@ export default function App() {
   // 設定のテーマ（既定 / ライト / ダーク）を反映する
   const { setMode } = useColorScheme()
   useEffect(() => setMode(settings.theme), [settings.theme, setMode])
+  useEffect(() => setUiScale(settings.uiScale), [settings.uiScale])
   const mobile = useMobileLayout()
 
   const [toast, setToast] = useState<string | null>(null)
@@ -197,7 +198,7 @@ export default function App() {
     <LangContext.Provider value={lang}>
       <PevenLabels.Provider value={LABELS[lang]}>
       <WindowModeContext.Provider value={settings.dialogWindow === 'auto' ? autoWindowMode() : settings.dialogWindow}>
-        <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
+        <Box sx={{ height: FULL_HEIGHT, display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
           <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={mobile ? mobileMenus : menus} />
           {picker.input}
 

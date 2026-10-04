@@ -13,6 +13,8 @@ export type StemsSetting = 'both' | 'vocals' | 'accompaniment'
 export interface Settings {
   theme: ThemeSetting
   language: LangSetting
+  /** 画面の大きさ（倍率。文字や入力欄などをまとめて拡大縮小する） */
+  uiScale: number
   model: ModelKind
   /** GPU（WebGPU）を使ってよいか */
   gpu: boolean
@@ -33,7 +35,7 @@ export interface Settings {
   devUpdates: boolean
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded', memoryMb: 1024, devUpdates: false }
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', uiScale: 1, model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded', memoryMb: 1024, devUpdates: false }
 
 const KEY = 'wevocalextractor.settings'
 

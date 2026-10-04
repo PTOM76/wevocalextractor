@@ -105,6 +105,8 @@
   "settings.themeLight": "라이트",
   "settings.themeDark": "다크",
   "settings.language": "언어",
+  "settings.uiScale": "화면 크기",
+  "settings.uiScaleHelp": "글자, 입력란, 버튼 등을 한꺼번에 확대, 축소합니다",
   "settings.languageAuto": "자동 (브라우저 언어)",
   "settings.groupUpdate": "업데이트",
   "settings.groupExtract": "보컬 추출",
