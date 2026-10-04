@@ -44,9 +44,10 @@ function outputRate(format: Settings['format'], rate: number) {
  * 終わったら Worker ごと解放する（推論中は数百MB使うため、持ち続けない）
  */
 /**
- * `confirmCpu` は、GPU で処理できなかったときに CPU で続けるかを尋ねる（`reason` は理由。偽なら中断）
+ * `confirmCpu` は、GPU で処理できなかったときに CPU で続けるかを尋ねる（`reason` は理由。偽なら中断）。
+ * `onGpuLost` は、WebGPU のデバイスが失われたときに呼ぶ（ブラウザの再起動を勧める）
  */
-export function useQueue(settings: Settings, confirmCpu: (reason: string) => Promise<boolean>) {
+export function useQueue(settings: Settings, confirmCpu: (reason: string) => Promise<boolean>, onGpuLost: (message: string) => void) {
   const [items, setItems] = useState<QueueItem[]>([])
   const [phase, setPhase] = useState<Phase>(null)
   const [error, setError] = useState<string | null>(null)
@@ -125,7 +126,7 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
     const useGpu = settings.gpu && backendAllowed(model, 'webgpu') && (await hasWebGpu())
     // モデルは Worker に移されるので、作り直すときのために複製を渡す
     const make = (backend: Backend) =>
-      createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb, onGpuFallback: backend === 'webgpu' ? confirmCpu : undefined })
+      createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb, onGpuFallback: backend === 'webgpu' ? confirmCpu : undefined, onGpuDeviceLost: onGpuLost })
     // GPU を使う設定で、ブラウザに WebGPU があるのに使えない（アダプターが取れない）ときも、黙って CPU にしない
     if (!useGpu && settings.gpu && 'gpu' in navigator && backendAllowed(model, 'webgpu') && !(await confirmCpu(t('error.noAdapter'))))
       throw new DOMException('cancelled', 'AbortError')

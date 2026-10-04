@@ -69,6 +69,7 @@
   "stem.vocals": "ボーカル",
   "stem.accompaniment": "伴奏",
   "error.failed": "抽出できませんでした: {message}",
+  "error.gpuLost": "GPU との接続が切れました（{reason}）。ブラウザを完全に終了して開き直してください。開き直すまで GPU を使用できないことがあります",
   "error.noAdapter": "WebGPU を使用できません（ブラウザがこのサイトの WebGPU を止めている可能性があります。ブラウザを完全に終了して開き直すと直ることがあります）",
   "error.gpuFallback": "GPU で処理できませんでした（{reason}）。CPU で続けますか？ CPU では時間がかかります（高品質モデルは曲の長さの約 10 倍）",
   "error.gpuFallbackOk": "CPU で続ける",

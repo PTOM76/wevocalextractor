@@ -40,3 +40,5 @@ export type WorkerResponse =
   | { id: number; progress: number }
   | { id: number; stems: Float32Array[][] }
   | { id: number; error: string }
+  /** WebGPU のデバイスが失われた（要求とは関係なく送る。`message` は理由） */
+  | { id: 0; deviceLost: string }

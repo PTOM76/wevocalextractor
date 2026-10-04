@@ -80,8 +80,26 @@ async function createSessions(backend: Backend) {
       ? { kind: 'spleeter', vocals: await create(m.vocals), accompaniment: await create(m.accompaniment) }
       : { kind: 'mdx', session: await create(m.model), params: m.params }
   current = backend
+  if (backend === 'webgpu') void watchDevice()
   // CPU で動かすなら、作り直しに使うことはないので手放す（知らせるときは、確かめたあとでも作り直せるよう持っておく）
   if (backend === 'wasm') model = null
+}
+
+/** 見張っている WebGPU のデバイス（同じものを二重に見張らない） */
+let watched: unknown = null
+
+/**
+ * WebGPU のデバイスが失われたら知らせる。ブラウザは、デバイスが何度も失われたサイトの WebGPU を、再起動まで止めることがある
+ * （docs/COMPATIBILITY.md）。デバイスは ONNX Runtime が作ったもの（env.webgpu.device）
+ */
+async function watchDevice() {
+  const dev = (await Promise.resolve((ort.env.webgpu as { device?: unknown }).device).catch(() => null)) as { lost?: Promise<{ reason?: string; message?: string }> } | null
+  if (!dev?.lost || watched === dev) return
+  watched = dev
+  const info = await dev.lost
+  // 手放したとき（destroy）は知らせない
+  if (info.reason === 'destroyed') return
+  post({ id: 0, deviceLost: info.message || info.reason || 'unknown' })
 }
 
 /** セッションを手放す。wasm のメモリ（ONNX Runtime と dsp.wasm）は残す */

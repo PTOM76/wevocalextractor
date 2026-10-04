@@ -32,6 +32,8 @@ export interface ExtractorOptions {
    * 真を返したら CPU で作り直してその曲をやり直し、偽なら中断（AbortError）。省くと尋ねずに CPU に切り替える
    */
   onGpuFallback?: (reason: string) => Promise<boolean>
+  /** WebGPU のデバイスが失われたときに呼ぶ（`message` は理由）。ブラウザの再起動を勧めるのに使う */
+  onGpuDeviceLost?: (message: string) => void
 }
 
 /** ONNX Runtime の wasm のメモリの上限の既定（MB）。iOS は上限の分を予約の枠から差し引くので、4GB（元の値）より下げる */
@@ -72,7 +74,7 @@ async function convert(channels: Float32Array[], from: number, to: number, outCh
 }
 
 type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }
-type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; runtime: Runtime; idle: number }
+type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; runtime: Runtime; idle: number; onLost?: (message: string) => void }
 
 /** 使い終わってから推論の Worker を止めるまでの時間（ミリ秒）の既定。続けて使うときは作り直さない */
 export const IDLE_MS = 30_000
@@ -103,6 +105,7 @@ function sharedWorker(memoryMb: number, runtime: Runtime) {
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
   const s: Shared = { worker, pending: new Map(), nextId: 1, owner: null, memoryMb, runtime, idle: 0 }
   worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    if ('deviceLost' in e.data) return s.onLost?.(e.data.deviceLost)
     const p = s.pending.get(e.data.id)
     if (!p) return
     if ('progress' in e.data) return p.onProgress?.(e.data.progress)
@@ -136,6 +139,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
   // Worker のモデルの持ち主。あとから作ったものに入れ替わっていたら、手放すときに Worker に触らない
   const token = {}
   s.owner = token
+  s.onLost = opts.onGpuDeviceLost
   const send = (req: WorkerRequest, transfer: Transferable[], onProgress?: (p: number) => void) =>
     new Promise<WorkerResponse>((resolve, reject) => {
       if (disposed) return reject(new DOMException('disposed', 'AbortError'))

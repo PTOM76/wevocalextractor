@@ -69,6 +69,7 @@
   "stem.vocals": "人声",
   "stem.accompaniment": "伴奏",
   "error.failed": "提取失败：{message}",
+  "error.gpuLost": "与 GPU 的连接已断开（{reason}）。请完全退出并重新打开浏览器，在此之前可能无法使用 GPU",
   "error.noAdapter": "无法使用 WebGPU（浏览器可能阻止了本网站的 WebGPU，完全退出并重新打开浏览器可能会解决）",
   "error.gpuFallback": "无法使用 GPU 处理（{reason}）。要用 CPU 继续吗？CPU 处理需要更长时间（高质量模型约为歌曲长度的 10 倍）",
   "error.gpuFallbackOk": "用 CPU 继续",

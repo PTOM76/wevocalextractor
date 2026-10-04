@@ -92,7 +92,8 @@ export default function App() {
   // GPU で処理できなかったら、CPU で続けるかを尋ねる（CPU では MDX-Net が曲の長さの約 10 倍かかる）
   const { confirm, dialog: confirmDialog } = useConfirm()
   const confirmCpu = (reason: string) => confirm({ message: t('error.gpuFallback', { reason }), okLabel: t('error.gpuFallbackOk') })
-  const q = useQueue(settings, confirmCpu)
+  // WebGPU のデバイスが失われたら、ブラウザの再起動を勧める（失われたサイトの WebGPU は、再起動まで止められることがある）
+  const q = useQueue(settings, confirmCpu, (message) => setToast(t('error.gpuLost', { reason: message })))
   // 開く画面はフォルダを覚える。最近使用したファイルの一覧はないので記録しない
   configureFileAccess({ rememberFolder: true, startFolder: 'music', recentFiles: false, pickerMode: 'auto' })
   const picker = useFilesPicker(AUDIO_ACCEPT, q.add, t('file.audioType'))
