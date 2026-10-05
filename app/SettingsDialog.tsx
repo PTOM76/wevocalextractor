@@ -135,7 +135,7 @@ export default function SettingsDialog({ open, onClose, settings, onChange, noti
                 <Choice<string>
                   value={String(draft.uiScale)}
                   onChange={(v) => set({ uiScale: Number(v) })}
-                  options={UI_SCALES.map((s): [string, string] => [String(s), `%`])}
+                  options={UI_SCALES.map((s): [string, string] => [String(s), `${Math.round(s * 100)}%`])}
                 />
               </Row>
             </Group>
