@@ -42,15 +42,18 @@ ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーにな�
 - 測った確認ページは、WeVocalSynth の履歴（`experiments/vocal-extractor/`、コミット bf5b964 まで）にある
 
 ## UVR の MDX-Net（2026-10-04 に追加）
-[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases/tag/source-separation-models) が、UVR（Ultimate Vocal Remover）の MDX-Net を ONNX にして配布している（28〜63MB、17 種類）。ボーカル用と伴奏用の 2 つを使う（モデルごとの値は [src/mdxModels.ts](../src/mdxModels.ts)）。
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases/tag/source-separation-models) が、UVR（Ultimate Vocal Remover）の MDX-Net を ONNX にして配布している（28〜63MB、17 種類）。ボーカル用・伴奏用・主旋律用の 3 つを使う（モデルごとの値は [src/mdxModels.ts](../src/mdxModels.ts)）。
 
 | 候補 | 大きさ | 出すもの | 用途 |
 | --- | --- | --- | --- |
 | `UVR-MDX-NET-Voc_FT` | 63MB | ボーカル | ボーカルを高品質に取り出す |
 | `UVR-MDX-NET-Inst_HQ_4` | 56MB | 伴奏 | 伴奏を高品質に取り出す |
+| `UVR_MDXNET_KARA_2` | 53MB | 主旋律以外（伴奏と和声） | 主旋律のボーカルだけを取り出す。和声は伴奏の側に残る（2026-10-05 に追加） |
+
+KARA_2 の値は UVR の設定（n_fft 5120、compensate 1.065、primary_stem は Instrumental）から。sherpa-onnx の ONNX はメタデータが足されていて UVR のハッシュと一致しないので、UVR の配布元（TRvlvr/model_repo）の元のファイルのハッシュで設定を引いた。ONNX のメタデータの dim_f は 2048、dim_t は 256（UVR の設定の dim_t 8 は 2 の 8 乗）。
 
 ### ライセンス
-UVR のコードは MIT。重みについて、UVR の README に「UVR's core developers trained all of the models provided in this package (except for the Demucs v3 and v4 4-stem models)」「For all third-party application developers who wish to use our models, please honor the MIT license by providing credit to UVR and its developers」とある（[ultimatevocalremovergui](https://github.com/Anjok07/ultimatevocalremovergui)）。Voc_FT・Inst_HQ_4 は UVR の開発者が学習させたものなので、MIT として、UVR と開発者のクレジットを付けて配る。モデルごとのライセンスファイルは無い。名前に Kim の付くモデル（Kim_Vocal など）は別の作者のもので、ライセンスがはっきりしないので使わない（[kmdx-net#3](https://github.com/KimberleyJensen/kmdx-net_music-source-separation/issues/3)）。
+UVR のコードは MIT。重みについて、UVR の README に「UVR's core developers trained all of the models provided in this package (except for the Demucs v3 and v4 4-stem models)」「For all third-party application developers who wish to use our models, please honor the MIT license by providing credit to UVR and its developers」とある（[ultimatevocalremovergui](https://github.com/Anjok07/ultimatevocalremovergui)）。Voc_FT・Inst_HQ_4・KARA_2 は UVR の開発者が学習させたものなので、MIT として、UVR と開発者のクレジットを付けて配る。モデルごとのライセンスファイルは無い。名前に Kim の付くモデル（Kim_Vocal など）は別の作者のもので、ライセンスがはっきりしないので使わない（[kmdx-net#3](https://github.com/KimberleyJensen/kmdx-net_music-source-separation/issues/3)）。
 
 ### 入出力（Spleeter との違い）
 sherpa-onnx の実装（`offline-source-separation-uvr-impl.h`、`scripts/uvr_mdx/test.py`）から:

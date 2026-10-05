@@ -11,6 +11,7 @@
   "opt.modelReplaced": "{from} is not compatible with the GPU, so {name} is used",
   "opt.modelVocalHq": "High quality (vocals, UVR Voc_FT)",
   "opt.modelInstHq": "High quality (accompaniment, UVR Inst_HQ_4)",
+  "opt.modelLead": "Lead vocal (harmonies go to accompaniment, UVR Karaoke 2)",
   "opt.modelSlowCpu": "Without the GPU, this takes about 10 times the song length",
   "opt.modelLight": "Light",
   "opt.modelStandard": "Standard",

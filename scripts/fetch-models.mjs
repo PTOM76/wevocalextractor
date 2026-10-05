@@ -28,7 +28,7 @@ for (const [kind, m] of Object.entries(MODELS)) {
 }
 // 再配布するモデルのライセンスを一緒に置く（LICENSE-THIRD-PARTY.md）
 // UVR の MDX-Net（sherpa-onnx が ONNX にして配っているもの）は 1 ファイル。model.onnx に名前をそろえる
-const MDX = { 'voc-ft': 'UVR-MDX-NET-Voc_FT.onnx', 'inst-hq4': 'UVR-MDX-NET-Inst_HQ_4.onnx' }
+const MDX = { 'voc-ft': 'UVR-MDX-NET-Voc_FT.onnx', 'inst-hq4': 'UVR-MDX-NET-Inst_HQ_4.onnx', kara2: 'UVR_MDXNET_KARA_2.onnx' }
 for (const [kind, file] of Object.entries(MDX)) {
   const src = join(CACHE, file)
   if (!existsSync(src)) execSync(`curl -sSfL -o "${src}" ${RELEASE}/${file}`, { stdio: 'inherit' })
