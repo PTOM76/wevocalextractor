@@ -23,7 +23,7 @@ export const MODELS: Record<ModelKind, { mb: number; label: MessageKey }> = {
 }
 
 /** UVR の MDX-Net か（CPU では曲の長さの約 10 倍かかる。docs/MODELS.md） */
-export const isMdx = (kind: ModelKind): kind is MdxModelId => kind in MDX_MODELS
+export const isMdx = (kind: ModelKind): kind is Exclude<MdxModelId, 'kara2'> => kind in MDX_MODELS
 
 /** この端末で実際に使うモデル（非互換なら代わりのもの）と、替えたか */
 export function resolveModel(model: ModelKind, gpu: boolean): { model: ModelKind; replaced: boolean } {
