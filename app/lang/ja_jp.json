@@ -11,7 +11,6 @@
   "opt.modelReplaced": "「{from}」は GPU と非互換のため、「{name}」で抽出します",
   "opt.modelVocalHq": "高品質（ボーカル向け、UVR Voc_FT）",
   "opt.modelInstHq": "高品質（伴奏向け、UVR Inst_HQ_4）",
-  "opt.modelLead": "主旋律（和声は伴奏に含める、UVR Karaoke 2）",
   "opt.modelSlowCpu": "GPU を使用できないと、曲の長さの約 10 倍の時間がかかります",
   "opt.modelLight": "軽量",
   "opt.modelStandard": "標準",

@@ -11,7 +11,7 @@ export const MDX_MODELS = {
   'voc-ft': { file: 'UVR-MDX-NET-Voc_FT.onnx', params: { nFft: 7680, dimF: 3072, dimT: 256, hop: 1024, compensate: 1.021, primary: 'vocals' } },
   /** 伴奏を取り出す。56MB */
   'inst-hq4': { file: 'UVR-MDX-NET-Inst_HQ_4.onnx', params: { nFft: 5120, dimF: 2560, dimT: 256, hop: 1024, compensate: 1.01, primary: 'accompaniment' } },
-  /** 主旋律のボーカルを取り出す（和声は伴奏の側に残る）。モデルが出すのは主旋律以外。53MB */
+  /** 主旋律とハモリを分ける（取り出したボーカルに掛ける。曲に掛けると伴奏が主旋律の側に残る）。モデルが出すのは主旋律以外。53MB */
   kara2: { file: 'UVR_MDXNET_KARA_2.onnx', params: { nFft: 5120, dimF: 2048, dimT: 256, hop: 1024, compensate: 1.065, primary: 'accompaniment' } },
 } as const satisfies Record<string, { file: string; params: MdxParams }>
 

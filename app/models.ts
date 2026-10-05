@@ -5,9 +5,10 @@ import { effectiveModel } from '../src/compat'
 
 /**
  * モデルの種類（docs/MODELS.md）。ファイルは scripts/fetch-models.mjs が public/models/<種類>/ に置く。
- * Spleeter（fp16・int8・fp32）は vocals.onnx と accompaniment.onnx、UVR の MDX-Net（voc-ft・inst-hq4・kara2）は model.onnx
+ * Spleeter（fp16・int8・fp32）は vocals.onnx と accompaniment.onnx、UVR の MDX-Net（voc-ft・inst-hq4）は model.onnx
  */
-export type ModelKind = 'fp16' | 'int8' | 'fp32' | MdxModelId
+// 主旋律モデル（kara2）は、ボーカルを取り出してから掛けるもので、単独の抽出には向かないので選べない（Synth の 3 トラックへの分離で使う）
+export type ModelKind = 'fp16' | 'int8' | 'fp32' | Exclude<MdxModelId, 'kara2'>
 
 /**
  * モデルの大きさ（MB）と表示する名前。端末との互換性（WebGPU を使えない、別のモデルに替える）は
@@ -19,7 +20,6 @@ export const MODELS: Record<ModelKind, { mb: number; label: MessageKey }> = {
   fp32: { mb: 75, label: 'opt.modelPrecise' },
   'voc-ft': { mb: 64, label: 'opt.modelVocalHq' },
   'inst-hq4': { mb: 57, label: 'opt.modelInstHq' },
-  kara2: { mb: 51, label: 'opt.modelLead' },
 }
 
 /** UVR の MDX-Net か（CPU では曲の長さの約 10 倍かかる。docs/MODELS.md） */

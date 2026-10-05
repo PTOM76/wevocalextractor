@@ -11,7 +11,6 @@
   "opt.modelReplaced": "「{from}」與 GPU 不相容，將使用「{name}」擷取",
   "opt.modelVocalHq": "高品質（人聲，UVR Voc_FT）",
   "opt.modelInstHq": "高品質（伴奏，UVR Inst_HQ_4）",
-  "opt.modelLead": "主旋律（和聲歸入伴奏，UVR Karaoke 2）",
   "opt.modelSlowCpu": "無法使用 GPU 時，需要約為歌曲長度 10 倍的時間",
   "opt.modelLight": "輕量",
   "opt.modelStandard": "標準",
