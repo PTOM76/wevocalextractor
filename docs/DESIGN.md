@@ -16,12 +16,12 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 | --- | --- |
 | `src/index.ts` | 公開 API（`createExtractor`）。モデルのサンプルレート・チャンネル数への変換と戻し |
 | `src/worker.ts` | 推論の Worker。STFT → 推論 → マスク → 逆STFT |
-| `src/dsp.wasm` | `dsp/` のビルド成果物（リポジトリに含める。Rust が無くても使えるように） |
+| `src/dsp.wasm` | `dsp/` のビルド成果物（リポジトリに含める。Rust が無くても使用できるように） |
 | `dsp/` | STFT（短時間フーリエ変換）と、マスクを掛けての逆STFT（Rust）。STFT 本体は [wevocal-lib](https://github.com/PTOM76/wevocal-lib) のもの。512 フレームのブロック単位で呼ぶ |
 | `scripts/build-wasm.mjs` | `dsp/` を wasm にビルドして `src/dsp.wasm` にコピーする。`WEVOCAL_LIB_PATH` で手元の wevocal-lib に差し替えられる |
 | `src/types.ts` | 型と、Worker とのメッセージ |
 
-- ライブラリは UI を持たず、React などにも依存しない。受け渡しはチャンネルごとの `Float32Array` とサンプルレートだけにする。Web ツール（`app/`）からも、ほかのアプリからも同じように使えるようにするため
+- ライブラリは UI を持たず、React などにも依存しない。受け渡しはチャンネルごとの `Float32Array` とサンプルレートだけにする。Web ツール（`app/`）からも、ほかのアプリからも同じように使用できるようにするため
 - モデルファイルはリポジトリに含めない。使う側が取得して `ArrayBuffer` で渡す（[MODELS.md](MODELS.md) の配布元から取る）
 - ONNX Runtime Web は `peerDependencies`。使う側がバンドルする
 
@@ -30,13 +30,13 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 | --- | --- |
 | `app/App.tsx` | 画面の組み立て（上部のバー、操作の帯（モデル・取り出すもの・追加・すべて取り出す・すべて保存）、一覧、各ダイアログ） |
 | `app/QueueList.tsx` | 取り出す曲の一覧。曲ごとの状態・進み具合・試聴・保存・やり直し・外す |
-| `app/SettingsDialog.tsx` | 設定画面の中身（全般・ボーカル抽出の詳細（GPU・高音域）・データ）。モデルと取り出すものは、よく変えるので画面の操作の帯に置く。外枠は PevenMUI の SettingsDialog |
+| `app/SettingsDialog.tsx` | 設定画面の中身（全般・ボーカル抽出の詳細（GPU・高音域）・データ）。モデルと取り出すものは、よく変えるので画面の操作の帯に配置する。外枠は PevenMUI の SettingsDialog |
 | `app/settings.ts` | 設定（テーマ・言語・モデル・取り出すもの・GPU・高音域）。localStorage に保存する |
 | `app/useQueue.ts` | 一覧の曲を1曲ずつ順に取り出す。モデルは最初に1回読み込み、一覧が終わるまで使い回す。中止は `dispose` で行い、途中の曲は待機中に戻す |
 | `app/zip.ts` | 「すべて保存」用の無圧縮 ZIP |
 | `app/models.ts` | モデルの種類と取得。取得したものは Cache Storage に保存し、2回目からはダウンロードしない |
 | `app/i18n.ts` | 画面の文言（日本語・英語。設定の「言語」で切り替え、自動ならブラウザの言語） |
-| `scripts/fetch-models.mjs` | 配るモデルを sherpa-onnx の配布物から取得し、`public/models/<種類>/` に置く |
+| `scripts/fetch-models.mjs` | 配るモデルを sherpa-onnx の配布物から取得し、`public/models/<種類>/` に配置する |
 | `vite.config.ts` | ツールのビルド設定。PevenMUI は隣の `../pevenmui` があればそれを、なければ submodule の `pevenmui/` を使う |
 
 - 音声ファイルの読み込みと書き出し（WAV / MP3 / Opus）は [wevocal-lib](https://github.com/PTOM76/wevocal-lib) の TypeScript 側（`web/`、submodule。WeVocalSynth と共通）
@@ -53,10 +53,10 @@ import { createExtractor } from 'wevocalextractor'
 const ex = await createExtractor({ vocals, accompaniment, backend: 'wasm' }) // 'wasm' | 'webgpu'
 const vocal = await ex.separate(channels, sampleRate, {
   stem: 'vocals', // 'vocals' | 'accompaniment'
-  highBand: 'zeros', // 約 11kHz より上: 'zeros'（消す）| 'edge'（1024 ビン目のマスクで延ばす）
+  highBand: 'zeros', // 約 11kHz より上: 'zeros'（0 にする）| 'edge'（1024 ビン目のマスクで延ばす）
   onProgress: (p) => {}, // 0〜1
 })
-ex.dispose() // Worker を止める（モデルのメモリも解放される）。処理中の separate は AbortError で失敗する（中断に使える）
+ex.dispose() // Worker を止める（モデルのメモリも解放される）。処理中の separate は AbortError で失敗する（中断に使用できる）
 ```
 
 - 結果は入力と同じサンプルレート・チャンネル数・長さ
@@ -66,11 +66,11 @@ ex.dispose() // Worker を止める（モデルのメモリも解放される）
 ```text
 入力（任意のサンプルレート・チャンネル数）
  → 44.1kHz・ステレオに変換（OfflineAudioContext）
- → 前後に N_FFT（4096 サンプル）ずつ無音を足す（両端のフレームも窓の重なりを揃えるため）
+ → 前後に N_FFT（4096 サンプル）ずつ無音を加える（両端のフレームも窓の重なりを揃えるため）
  → 512 フレーム（約 12 秒）ずつ:
      STFT → 振幅をモデルに入力（ボーカル用・伴奏用の2つ）
      → 比率のマスク v² / (v² + a²) を元の STFT に掛ける → 逆STFT して足し込む
- → 窓の2乗の和で割る → 足した無音を切り取る
+ → 窓の2乗の和で割る → 加えた無音を切り取る
  → 元のサンプルレート・チャンネル数に戻す
 ```
 
@@ -82,7 +82,7 @@ ex.dispose() // Worker を止める（モデルのメモリも解放される）
 ## 実行方法
 | 実行方法 | 扱い |
 | --- | --- |
-| WebGPU | 使える環境で、モデルが対応していれば使う（どちらを使うかは使う側が決める） |
+| WebGPU | 使用できる環境で、モデルが対応していれば使う（どちらを使うかは使う側が決める） |
 | WASM（マルチスレッド） | 当面は使わない。COOP/COEP ヘッダーが要り、GitHub Pages などでは設定できない |
 | WASM（シングルスレッド） | どこでも動く。動作保証の最低線 |
 

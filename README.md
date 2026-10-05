@@ -40,7 +40,7 @@ npm run dev
 
 `pevenmui/`（UI 部品）と `wevocal-lib/`（音声ファイルの読み込み・書き出し）は submodule。`--recursive` を付け忘れたら `git submodule update --init` で取得する。
 
-モデルはリポジトリに含めない。`npm run fetch-models` で配布元から取得し、`public/models/` に置く（取得した配布物は `.cache/` に残る）。
+モデルはリポジトリに含めない。`npm run fetch-models` で配布元から取得し、`public/models/` に配置する（取得した配布物は `.cache/` に残る）。
 
 信号処理（`dsp/`）を変えるときだけ Rust が要る。ビルド済みの `.wasm` をリポジトリに含めているので、画面だけなら Node.js だけで動く。
 
@@ -62,7 +62,7 @@ ex.dispose()
 
 - 入出力はチャンネルごとの `Float32Array` とサンプルレート。結果は入力と同じサンプルレート・チャンネル数・長さ
 - 推論は専用の Worker で行う。モデルのサンプルレート（44.1kHz）・ステレオへの変換と戻しは `OfflineAudioContext` で行う
-- ライブラリ本体（`src/`）は画面を持たず React も使わないので、ほかのアプリからもそのまま使える
+- ライブラリ本体（`src/`）は画面を持たず React も使わないので、ほかのアプリからもそのまま使用できる
 
 ## コードの場所
 - 画面: `app/`

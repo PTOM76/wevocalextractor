@@ -8,4 +8,4 @@
 | [モデル](MODELS.md) | Spleeter 2stems の種類・入出力・測った値・今後の候補 |
 | [決定事項](DECISIONS.md) | 実装で問題を踏んで決まったこと（新しいコードでも同じようにする） |
 
-セットアップと使えるコマンドは [README](../README.md#セットアップ) と [todofile.json5](../todofile.json5)。
+セットアップと使用できるコマンドは [README](../README.md#セットアップ) と [todofile.json5](../todofile.json5)。

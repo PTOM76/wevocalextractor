@@ -26,7 +26,7 @@ WeVocalExtractor で使うモデル（Spleeter 2stems）と、その入出力、
 1024 ビン（約 11kHz）より上はモデルが扱わない。sherpa-onnx はマスクを 0 にしている（`highBand: 'zeros'`）。1024 ビン目のマスクで延ばす方法（`'edge'`）も選べるが、どちらがよいかは未定。
 
 ### fp16 は WebGPU で動かさない
-ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーは出ずに出力がすべて 0 になった（入力は正しく渡っていた）。int8 版・fp32 版は WebGPU でも正しく抽出できた。
+ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーにならずに出力がすべて 0 になった（入力は正しく渡っていた）。int8 版・fp32 版は WebGPU でも正しく抽出できた。
 
 ## 測った値 (2026-10-01、PC・Chrome・1スレッド、45秒の曲)
 | 構成 | RTF（処理時間 ÷ 音声の長さ） | 推論 | STFT＋逆STFT（JS） |
@@ -65,7 +65,7 @@ sherpa-onnx の実装（`offline-source-separation-uvr-impl.h`、`scripts/uvr_md
 | モデルごとの値 | ONNX のメタデータ（`n_fft`・`dim_f`・`dim_t`・`hop_length` など）。ブラウザの ONNX Runtime からは読めないので、こちらの表に書く。sherpa-onnx の ONNX の `n_fft` は dim_f × 2 で書かれていて、Voc_FT は UVR の設定（7680）と違う（6144）。UVR の方を使う。取り出した音に掛ける補正（`compensate`）も UVR の設定から（Voc_FT 1.021、Inst_HQ_4 1.01） |
 | 速さ | CPU で Spleeter の約 10 倍遅い（sherpa-onnx の測定、28MB のモデルで RTF 0.73） |
 
-組み込み: 2 のべき乗でない FFT（3・5 を含む大きさ）を wevocal-lib に足し、MDX-Net 用の STFT と逆変換を dsp.wasm（`dsp/src/mdx.rs`）に、区間ごとの推論を [src/mdx.ts](../src/mdx.ts) に置いた。曲の前後を `n_fft / 2` ずつ延ばし、`hop × (dim_t − 1)` サンプルの区間を `区間 − n_fft` ずつずらして推論し、区間の両端は捨ててつなぐ（sherpa-onnx の 15 秒ずつの区切りは、メモリを抑えるためのもので使っていない）。
+組み込み: 2 のべき乗でない FFT（3・5 を含む大きさ）を wevocal-lib に追加し、MDX-Net 用の STFT と逆変換を dsp.wasm（`dsp/src/mdx.rs`）に、区間ごとの推論を [src/mdx.ts](../src/mdx.ts) に配置した。曲の前後を `n_fft / 2` ずつ延ばし、`hop × (dim_t − 1)` サンプルの区間を `区間 − n_fft` ずつずらして推論し、区間の両端は捨ててつなぐ（sherpa-onnx の 15 秒ずつの区切りは、メモリを抑えるためのもので使っていない）。
 
 測った値（2026-10-04、開発 PC の Chrome、5 秒の曲）:
 
