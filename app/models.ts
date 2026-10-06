@@ -2,6 +2,7 @@ import type { ExtractorOptions, Stem } from '../src/index'
 import { MDX_MODELS, type MdxModelId } from '../src/mdxModels'
 import { t, type MessageKey } from './i18n'
 import { effectiveModel } from '../src/compat'
+import { app } from './appConfig'
 
 /**
  * モデルの種類（docs/MODELS.md）。ファイルは scripts/fetch-models.mjs が public/models/<種類>/ に置く。
@@ -32,7 +33,7 @@ export function resolveModel(model: ModelKind, gpu: boolean): { model: ModelKind
 }
 
 /** 取得したモデルの保存先。2回目からはダウンロードせずに使う */
-const CACHE = 'wevocalextractor-models'
+const CACHE = app.cacheName('models')
 
 const modelUrl = (kind: ModelKind, file: Stem | 'model') => new URL(`${import.meta.env.BASE_URL}models/${kind}/${file}.onnx`, location.href).href
 

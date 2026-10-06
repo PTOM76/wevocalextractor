@@ -1,4 +1,5 @@
 import type { QueueItem } from './useQueue'
+import { app } from './appConfig'
 
 // 一覧を IndexedDB に残し、ページを閉じても次に開いたときに戻す。
 // - 待機中・失敗した曲は、元のファイルごと残す（開き直したら続きから抽出できる）。抽出中の曲は待機中として残す
@@ -6,7 +7,7 @@ import type { QueueItem } from './useQueue'
 // - ボーカル・伴奏ともダウンロードした曲は残さない
 // どこまで残すかは設定で変えられる（`KeepMode`。残さない・ダウンロードした結果も残す）
 
-const DB = 'wevocalextractor'
+const DB = app.id
 const STORE = 'queue'
 
 /** IndexedDB に入れる1曲 */

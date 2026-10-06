@@ -15,9 +15,8 @@ import SettingsDialog from './SettingsDialog'
 import { useSettings, type StemsSetting } from './settings'
 import { useQueue, type Phase, type QueueItem } from './useQueue'
 import { makeZip } from './zip'
+import { app } from './appConfig'
 
-const REPOSITORY_URL = 'https://github.com/PTOM76/wevocalextractor'
-const AUTHOR = 'PitaQ'
 /** 今動いている版（バージョンとコミット） */
 const APP_BUILD = formatBuild(__APP_VERSION__, __APP_COMMIT__)
 
@@ -116,7 +115,7 @@ export default function App() {
     const stems = ['vocals', 'accompaniment'] as const
     const files = done.flatMap((it) => stems.flatMap((s) => (it[s] ? [{ name: outName(it, s), blob: it[s] }] : [])))
     if (!files.length) return
-    downloadBlob(await makeZip(files), 'wevocalextractor.zip')
+    downloadBlob(await makeZip(files), `${app.id}.zip`)
     for (const it of done) q.markSaved(it.id, stems.filter((s) => it[s]))
   }
 
@@ -199,7 +198,7 @@ export default function App() {
       <PevenLabels.Provider value={i18n.labels(lang)}>
       <WindowModeContext.Provider value={settings.dialogWindow === 'auto' ? autoWindowMode() : settings.dialogWindow}>
         <Box sx={{ height: FULL_HEIGHT, display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: 'background.default' }}>
-          <AppHeader title="WeVocalExtractor" icon={<AppIcon size={16} />} menus={mobile ? mobileMenus : menus} />
+          <AppHeader icon={<AppIcon size={16} />} menus={mobile ? mobileMenus : menus} />
           {picker.input}
 
           {/* 操作の帯: モデル・抽出するもの・形式と、一覧への操作 */}
@@ -259,19 +258,18 @@ export default function App() {
 
         <SettingsDialog open={settingsOpen} focusSignal={settingsFocus} onClose={() => setSettingsOpen(false)} settings={settings} onChange={updateSettings} notify={setToast} />
         {confirmDialog}
-        <LicensesDialog open={licensesOpen} onClose={() => setLicensesOpen(false)} title={t('menu.licenses')} intro={t('licenses.intro')} entries={licenseEntries(REPOSITORY_URL)} />
+        <LicensesDialog open={licensesOpen} onClose={() => setLicensesOpen(false)} title={t('menu.licenses')} intro={t('licenses.intro')} entries={licenseEntries(app.repository)} />
         <AboutDialog
           open={aboutOpen}
           onClose={() => setAboutOpen(false)}
           icon={<AppIcon size={56} />}
-          name="WeVocalExtractor"
           rows={[
             [t('about.version'), <span className="selectable">{APP_BUILD}</span>],
-            [t('about.author'), AUTHOR],
+            [t('about.author'), app.author],
             [
               'GitHub',
-              <Link className="selectable" href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
-                {REPOSITORY_URL.replace('https://', '')}
+              <Link className="selectable" href={app.repository} target="_blank" rel="noopener noreferrer">
+                {app.repository.replace('https://', '')}
               </Link>,
             ],
             [t('about.license'), t('about.licenseText')],

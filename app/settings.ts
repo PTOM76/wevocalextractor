@@ -4,6 +4,7 @@ import type { WindowMode } from 'pevenmui'
 import type { LangSetting } from './i18n'
 import type { ModelKind } from './models'
 import type { KeepMode } from './persist'
+import { app } from './appConfig'
 
 export type ThemeSetting = 'system' | 'light' | 'dark'
 /** 抽出するもの */
@@ -37,7 +38,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = { theme: 'system', language: 'auto', uiScale: 1, model: 'int8', stems: 'both', format: 'wav', wavFormat: 'pcm16', kbps: 192, gpu: true, highBand: false, dialogWindow: 'auto', keepQueue: 'undownloaded', memoryMb: 1024, devUpdates: false }
 
-const KEY = 'wevocalextractor.settings'
+const KEY = app.key('settings')
 
 function load(): Settings {
   try {

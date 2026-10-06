@@ -1,12 +1,13 @@
 import type { LicenseEntry } from 'pevenmui'
 import { t } from './i18n'
+import { app } from './appConfig'
 
 /**
  * ヘルプの「ライセンス情報」に出す、使っている部品・モデルの一覧。ライセンスの扱いの詳しいことは LICENSE-THIRD-PARTY.md。
  * 部品を足したら、ここにも足す
  */
 export const licenseEntries = (repository: string): LicenseEntry[] => [
-  { name: 'WeVocalExtractor', license: 'MIT', url: repository, note: t('licenses.app') },
+  { name: app.name, license: 'MIT', url: repository, note: t('licenses.app') },
   { name: 'PevenMUI', license: 'MIT', url: 'https://github.com/PTOM76/pevenmui', note: t('licenses.ui') },
   { name: 'WeVocalLib', license: 'MIT', url: 'https://github.com/PTOM76/wevocal-lib', note: t('licenses.audio') },
   { name: 'React', license: 'MIT', url: 'https://github.com/facebook/react', note: t('licenses.ui') },
