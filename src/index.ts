@@ -2,9 +2,9 @@
  * WeVocalExtractor: 曲からボーカル（または伴奏）を取り出す。UI を持たず、React にも依存しない（docs/DESIGN.md。画面は app/）。
  * 受け渡しはチャンネルごとの Float32Array とサンプルレートだけ。推論は専用の Worker で行う。
  */
-import { GPU_FALLBACK, type Backend, type HighBand, type MdxParams, type Runtime, type Stem, type WorkerRequest, type WorkerResponse } from './types'
+import { GPU_FALLBACK, type Backend, type DemucsParams, type DemucsSource, type HighBand, type MdxParams, type Runtime, type Stem, type WorkerRequest, type WorkerResponse } from './types'
 
-export type { Backend, HighBand, MdxParams, Runtime, Stem }
+export type { Backend, DemucsParams, DemucsSource, HighBand, MdxParams, Runtime, Stem }
 
 /** モデル（Spleeter 2stems）のサンプルレート */
 const MODEL_RATE = 44100
@@ -15,6 +15,8 @@ export interface ExtractorOptions {
   accompaniment?: ArrayBuffer
   /** UVR の MDX-Net のモデル（ONNX）と、モデルごとの値（docs/MODELS.md） */
   mdx?: { model: ArrayBuffer; params: MdxParams }
+  /** Demucs のモデル（ONNX）と、モデルごとの値。楽器ごとに分ける（`separateStems`） */
+  demucs?: { model: ArrayBuffer; params: DemucsParams }
   backend: Backend
   /** ONNX Runtime の wasm のメモリの上限（MB）。既定は `DEFAULT_MEMORY_MB`。変えると推論の Worker を作り直す */
   memoryMb?: number
@@ -38,6 +40,8 @@ export interface ExtractorOptions {
 
 /** ONNX Runtime の wasm のメモリの上限の既定（MB）。iOS は上限の分を予約の枠から差し引くので、4GB（元の値）より下げる */
 export const DEFAULT_MEMORY_MB = 1024
+/** Demucs の wasm のメモリの上限（MB）。読み込みと推論で約 1.2GB 使う（docs/MODELS.md） */
+export const DEMUCS_MEMORY_MB = 2048
 
 export interface SeparateOptions {
   stem: Stem
@@ -54,6 +58,8 @@ export interface Extractor {
     sampleRate: number,
     opts: Omit<SeparateOptions, 'stem'>,
   ): Promise<{ vocals: Float32Array[]; accompaniment: Float32Array[] }>
+  /** `stems` の音を、その順に取り出す（推論は1回。Demucs ならドラムやベースなども取り出せる） */
+  separateStems(channels: Float32Array[], sampleRate: number, stems: Stem[], opts: Omit<SeparateOptions, 'stem'>): Promise<Float32Array[][]>
   dispose(): void
 }
 
@@ -124,13 +130,16 @@ export const extractorBusy = () => !!shared?.owner
 /** 実行環境を作る。前に作ったものは使えなくなる（Worker は1つで、モデルを入れ替える） */
 export async function createExtractor(opts: ExtractorOptions): Promise<Extractor> {
   const model =
-    opts.mdx
-      ? ({ kind: 'mdx', model: opts.mdx.model, params: opts.mdx.params } as const)
-      : opts.vocals && opts.accompaniment
-        ? ({ kind: 'spleeter', vocals: opts.vocals, accompaniment: opts.accompaniment } as const)
-        : null
+    opts.demucs
+      ? ({ kind: 'demucs', model: opts.demucs.model, params: opts.demucs.params } as const)
+      : opts.mdx
+        ? ({ kind: 'mdx', model: opts.mdx.model, params: opts.mdx.params } as const)
+        : opts.vocals && opts.accompaniment
+          ? ({ kind: 'spleeter', vocals: opts.vocals, accompaniment: opts.accompaniment } as const)
+          : null
   if (!model) throw new Error('model is required')
-  const memoryMb = opts.memoryMb ?? DEFAULT_MEMORY_MB
+  // Demucs は既定の上限では足りないので、少なくとも DEMUCS_MEMORY_MB にする
+  const memoryMb = Math.max(opts.memoryMb ?? DEFAULT_MEMORY_MB, model.kind === 'demucs' ? DEMUCS_MEMORY_MB : 0)
   const runtime = opts.runtime ?? (opts.backend === 'webgpu' ? 'gpu' : 'cpu')
   const s = sharedWorker(memoryMb, runtime)
   /** この実行環境が送った要求の id */
@@ -153,7 +162,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
   try {
     await send(
       { kind: 'init', id: s.nextId++, model, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl, askFallback: !!opts.onGpuFallback },
-      model.kind === 'mdx' ? [model.model] : [model.vocals, model.accompaniment],
+      model.kind === 'spleeter' ? [model.vocals, model.accompaniment] : [model.model],
     )
   } catch (e) {
     // ONNX Runtime は wasm の準備に一度失敗すると、同じ Worker では二度と準備できない
@@ -212,6 +221,9 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
     async separateBoth(channels, sampleRate, o) {
       const [vocals, accompaniment] = await run(channels, sampleRate, ['vocals', 'accompaniment'], o)
       return { vocals, accompaniment }
+    },
+    separateStems(channels, sampleRate, stems, o) {
+      return run(channels, sampleRate, stems, o)
     },
     dispose() {
       if (disposed) return

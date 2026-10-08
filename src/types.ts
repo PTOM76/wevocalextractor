@@ -2,8 +2,10 @@
 export type Backend = 'wasm' | 'webgpu'
 /** 読み込む ONNX Runtime（gpu: WebGPU 対応版。CPU でも動く / cpu: WASM 版。CPU だけ） */
 export type Runtime = 'gpu' | 'cpu'
-/** 取り出す音 */
-export type Stem = 'vocals' | 'accompaniment'
+/** 取り出す音。Demucs は楽器ごとにも分ける（accompaniment はボーカル以外の和） */
+export type Stem = 'vocals' | 'accompaniment' | DemucsSource
+/** Demucs が出す音 */
+export type DemucsSource = 'drums' | 'bass' | 'other' | 'vocals' | 'guitar' | 'piano'
 /** モデルが扱わない約 11kHz より上の扱い（zeros: 消す / edge: 1024 ビン目のマスクで延ばす） */
 export type HighBand = 'zeros' | 'edge'
 
@@ -19,8 +21,17 @@ export interface MdxParams {
   primary: Stem
 }
 
-/** 推論に使うモデル。Spleeter はボーカル用と伴奏用の 2 つ、MDX-Net は 1 つ */
-export type ModelData = { kind: 'spleeter'; vocals: ArrayBuffer; accompaniment: ArrayBuffer } | { kind: 'mdx'; model: ArrayBuffer; params: MdxParams }
+/** Demucs（htdemucs）のモデルごとの値（docs/MODELS.md の「Demucs」） */
+export interface DemucsParams {
+  /** モデルが出す音の順 */
+  sources: readonly DemucsSource[]
+}
+
+/** 推論に使うモデル。Spleeter はボーカル用と伴奏用の 2 つ、MDX-Net と Demucs は 1 つ */
+export type ModelData =
+  | { kind: 'spleeter'; vocals: ArrayBuffer; accompaniment: ArrayBuffer }
+  | { kind: 'mdx'; model: ArrayBuffer; params: MdxParams }
+  | { kind: 'demucs'; model: ArrayBuffer; params: DemucsParams }
 
 /** `askFallback` のとき、GPU で処理できなかったら、このエラー（後ろに理由）で知らせる */
 export const GPU_FALLBACK = 'GPU_FALLBACK:'

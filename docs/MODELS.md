@@ -1,5 +1,5 @@
 # モデル
-WeVocalExtractor で使うモデル（Spleeter 2stems）と、その入出力、測った値、今後の候補をまとめる。(2026-10-01 時点)
+WeVocalExtractor で使うモデル（Spleeter 2stems、UVR の MDX-Net、Demucs）と、その入出力、測った値、今後の候補をまとめる。(2026-10-01 時点)
 端末・ブラウザとの互換性（動かない組み合わせと、自動で替えるもの）は [COMPATIBILITY.md](COMPATIBILITY.md) に記録する。
 
 ## Spleeter 2stems（sherpa-onnx の ONNX 版）
@@ -78,8 +78,48 @@ sherpa-onnx の実装（`offline-source-separation-uvr-impl.h`、`scripts/uvr_md
 | Inst_HQ_4 | 2.1 秒（RTF 0.43） | — |
 
 CPU では曲の長さの約 10 倍かかるので、画面で知らせる（GPU を使わない設定や、WebGPU の無いブラウザ）。WebGPU の出力は CPU と同じで、0 になる問題は無かった。
+## Demucs（2026-10-08 に追加）
+Demucs v4（htdemucs、Meta）を ONNX にしたもの（[adowu/htdemucs-onnx](https://huggingface.co/adowu/htdemucs-onnx)、[adowu/htdemucs-6s-onnx](https://huggingface.co/adowu/htdemucs-6s-onnx)）。曲を楽器ごとに分ける。重みを fp16 で持つ版を使う（モデルごとの値は [src/demucsModels.ts](../src/demucsModels.ts)）。
+
+| モデル | 大きさ | 出すもの（この順） |
+| --- | --- | --- |
+| `htdemucs_fp16weights` | 166MB | ドラム、ベース、その他、ボーカル |
+| `htdemucs_6s_fp16weights` | 136MB | ドラム、ベース、その他、ボーカル、ギター、ピアノ |
+
+fp32 版（316MB、258MB）は入れていない。出力の差は最大 4.6×10⁻⁵ で、実行時は fp16 版も fp32 で計算するので、メモリと速さも同じ（モデルカードの値）。楽器ごとに専用のモデルを使う高品質版（htdemucs_ft）は、4 つで 1.26GB、時間も 4 倍なので入れていない。
+
+### ライセンス
+Demucs はコードも学習済みの重みも MIT（[facebookresearch/demucs](https://github.com/facebookresearch/demucs)。2025-01 にアーカイブ）。UVR にも入っているが、UVR の開発者が学習させたものではない（UVR の README の「except for the Demucs v3 and v4 4-stem models」）。ONNX 版のモデルカードも MIT。
+
+### 入出力
+
+| 項目 | 内容 |
+| --- | --- |
+| 入力 `mix` | `[1, 2, 343980]`。44.1kHz ステレオの波形 7.8 秒（-1〜1） |
+| 出力 `stems` | `[1, 音の数, 2, 343980]`。音ごとの波形 |
+| STFT | モデルの中（sin、cos の重みの Conv1d にしてある）。dsp.wasm は使わない |
+| 区切り方 | 1/4 ずつ重ねて 7.8 秒ずつ推論し、重なる所は直線で入れ替えて足す（[src/demucs.ts](../src/demucs.ts)。ONNX 版の `infer.py` と同じ。曲の頭と終わりは小さくしない） |
+| 伴奏 | 元の音 − ボーカル（`accompaniment` を頼まれたとき）。モデルの出力の和は、元の音と -30dB 程度の差がある |
+
+### ブラウザで動かすときの注意
+- グラフの最適化を切る（`graphOptimizationLevel: 'disabled'`）。既定（all）でも basic でも、セッションを作るところで wasm のメモリが足りなくなる（`std::bad_alloc`）
+- wasm のメモリの上限を 2GB にする（`DEMUCS_MEMORY_MB`。既定の 1GB では足りない）
+
+測った値（2026-10-08、開発 PC、Node 22 + onnxruntime-web 1.30 の wasm、`htdemucs_fp16weights`）:
+
+| 項目 | 1 スレッド | 4 スレッド |
+| --- | --- | --- |
+| 読み込み | 25 秒 | 18 秒 |
+| 推論（7.8 秒の区切り 1 つ） | 36 秒 | 16 秒 |
+| 曲の長さに対する時間（区切りは 5.85 秒ずつ進む） | 約 6 倍 | 約 2.7 倍（24 秒の曲で 65 秒） |
+| メモリ（プロセス全体） | 1.2GB | 1.3GB |
+
+GitHub Pages では COOP/COEP が無くマルチスレッドを使えないので、CPU では 1 スレッド（3 分の曲で約 18 分）。WebGPU の速さは未確認。
+曲全体（24 秒）を分けて 4 つの音を足すと、元の音との差は -31.8dB だった。
+
 ## 今後の候補
 | 候補 | 所感 |
 | --- | --- |
 | UVR の MDX-Net 系 | sherpa-onnx に ONNX 版（28〜64MB）がある。Spleeter より約10倍遅い。重みのライセンスはモデルごとに確かめる |
-| Demucs（htdemucs） | 高品質だが重い。スマホの標準には向かない |
+| htdemucs_ft | Demucs の高品質版。楽器ごとに 316MB のモデルが 4 つ。時間も 4 倍 |
+| WebGPU 向けの htdemucs_6s（[kramp/htdemucs-6s-webgpu-onnx](https://huggingface.co/kramp/htdemucs-6s-webgpu-onnx)） | WebGPU で動くように作り直したもの。Demucs を速くしたいときの候補 |

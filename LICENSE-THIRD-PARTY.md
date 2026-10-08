@@ -26,6 +26,13 @@ Spleeter の README は、著作権のある音源に使うときは権利者の
   - 学習済みモデルについて、README に「UVR's core developers trained all of the models provided in this package (except for the Demucs v3 and v4 4-stem models)」「For all third-party application developers who wish to use our models, please honor the MIT license by providing credit to UVR and its developers」とある。この 2 つは UVR の開発者が学習させたものなので、MIT に従い、ここと画面（このアプリについて）で UVR とその開発者のクレジットを示す (2026-10-04 時点の確認)
 - ONNX への変換: sherpa-onnx（k2-fsa、Apache-2.0）。上と同じ配布ページ
 
+## Demucs v4（htdemucs）の学習済みモデル（ONNX 版）
+- 用途: ボーカル、ドラム、ベース、その他（6 つの版はギター、ピアノも）への分離のモデル（`htdemucs`、`htdemucs_6s`。[docs/MODELS.md](docs/MODELS.md)）
+- 元のモデル: Demucs（Meta）。https://github.com/facebookresearch/demucs
+  - ライセンス: MIT（Copyright (c) Meta Platforms, Inc. and affiliates.）。README に、コードと学習済みの重みを MIT で公開するとある。全文: [licenses/demucs-MIT.txt](licenses/demucs-MIT.txt) (2026-10-08 時点の確認)
+- ONNX への変換: adowu。https://huggingface.co/adowu/htdemucs-onnx 、https://huggingface.co/adowu/htdemucs-6s-onnx
+  - ライセンス: MIT（元のモデルと同じ、とモデルカードにある）。重みを fp16 で持つ版（`*_fp16weights.onnx`）を使う (2026-10-08 時点の確認)
+
 ## lamejs（@breezystack/lamejs）
 - 用途: MP3 の書き出し
 - ライセンス: LGPL-3.0（全文は `node_modules/@breezystack/lamejs/LICENSE`、配布元 https://github.com/nicktindall/lamejs の派生）

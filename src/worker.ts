@@ -2,9 +2,11 @@
 // 推論用の Worker。STFT と逆STFT は dsp.wasm（dsp/ の Rust、wevocal-lib の STFT を使う）で行う。
 // - Spleeter: STFT → 推論（ボーカル用・伴奏用）→ マスク → 逆STFT を 512 フレームずつ（1曲分のスペクトルを一度に持たないため）
 // - MDX-Net: 区間ごとに STFT → 推論（取り出す音の複素スペクトログラム）→ 逆STFT。もう一方の音は元の音から引く（mdx.ts）
+// - Demucs: 7.8 秒の区間ごとに、波形から音ごとの波形を推論する（STFT はモデルの中。demucs.ts）
 import type * as Ort from 'onnxruntime-web'
-import { GPU_FALLBACK, type Backend, type HighBand, type MdxParams, type ModelData, type Runtime, type Stem, type WorkerRequest, type WorkerResponse } from './types'
+import { GPU_FALLBACK, type Backend, type DemucsParams, type HighBand, type MdxParams, type ModelData, type Runtime, type Stem, type WorkerRequest, type WorkerResponse } from './types'
 import { separateMdx } from './mdx'
+import { DEMUCS_SEGMENT, separateDemucs } from './demucs'
 
 /** STFT の設定。dsp/src/lib.rs の N_FFT / HOP と一致させる */
 const N_FFT = 4096
@@ -35,7 +37,10 @@ export interface DspExports {
  */
 let ort: typeof Ort
 /** 読み込んだモデルのセッション */
-type Loaded = { kind: 'spleeter'; vocals: Ort.InferenceSession; accompaniment: Ort.InferenceSession } | { kind: 'mdx'; session: Ort.InferenceSession; params: MdxParams }
+type Loaded =
+  | { kind: 'spleeter'; vocals: Ort.InferenceSession; accompaniment: Ort.InferenceSession }
+  | { kind: 'mdx'; session: Ort.InferenceSession; params: MdxParams }
+  | { kind: 'demucs'; session: Ort.InferenceSession; params: DemucsParams }
 let loaded: Loaded | null = null
 let dsp: DspExports | null = null
 /** GPU で動かしているときは、出力がおかしければ CPU で作り直すためにモデルを持っておく */
@@ -74,11 +79,15 @@ async function createSessions(backend: Backend) {
   if (!m) throw new Error('not initialized')
   // メモリを先回りして確保しない（iOS Safari はタブのメモリが少なく、先回りの確保で RangeError: Out of memory になりやすい）
   const opts: Ort.InferenceSession.SessionOptions = { executionProviders: [backend], enableCpuMemArena: false, enableMemPattern: false }
+  // Demucs はグラフを最適化すると、作る途中で wasm のメモリが足りなくなる（std::bad_alloc。basic でも同じ。docs/MODELS.md）
+  if (m.kind === 'demucs') opts.graphOptimizationLevel = 'disabled'
   const create = (buf: ArrayBuffer) => ort.InferenceSession.create(new Uint8Array(buf), opts)
   loaded =
     m.kind === 'spleeter'
       ? { kind: 'spleeter', vocals: await create(m.vocals), accompaniment: await create(m.accompaniment) }
-      : { kind: 'mdx', session: await create(m.model), params: m.params }
+      : m.kind === 'mdx'
+        ? { kind: 'mdx', session: await create(m.model), params: m.params }
+        : { kind: 'demucs', session: await create(m.model), params: m.params }
   current = backend
   if (backend === 'webgpu') void watchDevice()
   // CPU で動かすなら、作り直しに使うことはないので手放す（知らせるときは、確かめたあとでも作り直せるよう持っておく）
@@ -147,6 +156,18 @@ const needsCheck = () => current === 'webgpu' && model !== null
 /** `ch` は 44.1kHz のステレオ。`stems` の音を、その順に返す（推論は1回で、逆STFT だけ音ごとに行う） */
 async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand: HighBand) {
   if (!loaded || !dsp) throw new Error('not initialized')
+  if (loaded.kind === 'demucs') {
+    const infer = (x: Float32Array, check: boolean) =>
+      guarded(async () => {
+        const s = loaded
+        if (s?.kind !== 'demucs') throw new Error('not initialized')
+        const out = await s.session.run({ mix: new ort.Tensor('float32', x, [1, 2, DEMUCS_SEGMENT]) })
+        return [out.stems.data as Float32Array]
+      }, check).then(([y]) => y)
+    const result = await separateDemucs(ch, stems, loaded.params, infer, needsCheck, (p) => post({ id, progress: p }))
+    post({ id, stems: result }, result.flat().map((c) => c.buffer))
+    return
+  }
   if (loaded.kind === 'mdx') {
     const { params } = loaded
     const infer = (x: Float32Array, check: boolean) =>
