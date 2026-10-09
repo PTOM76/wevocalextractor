@@ -23,7 +23,7 @@ function submodule(name: string, entry: string, env: string | undefined) {
 // PevenMUI（UI 部品）と wevocal-lib（音声ファイルの読み込み・書き出し。TypeScript 側は web/）
 const pevenmui = submodule('pevenmui', 'src/index.ts', process.env.PEVENMUI_PATH)
 // アプリの定義をビルドに渡すプラグイン（場所が決まるのは実行時なので、動的に読み込む。Node が .ts の型を取り除いて読む）
-const { pevenApp, pevenManifest }: typeof import('../pevenmui/src/vite.ts') = await import(pathToFileURL(resolve(pevenmui, 'src/vite.ts')).href)
+const { ISOLATION_SCRIPT, pevenApp, pevenIsolation, pevenManifest }: typeof import('../pevenmui/src/vite.ts') = await import(pathToFileURL(resolve(pevenmui, 'src/vite.ts')).href)
 const wevocalLib = submodule('wevocal-lib', 'web/src/index.ts', process.env.WEVOCAL_LIB_PATH)
 
 // 開発サーバーで、依存パッケージのファイル（onnxruntime-web の wasm・フォントなど）を配れるようにする。
@@ -58,6 +58,8 @@ export default defineConfig({
     react(),
     // 版（__APP_VERSION__、__APP_COMMIT__、version.json）と、index.html の名前、言語、配信先の URL（SITE_URL で指定）。WeVocalSynth と同じ
     pevenApp(APP_INFO, { version: pkg.version, root }),
+    // wasm のマルチスレッドのため、cross-origin isolation にする（Synth の memo/wasm-threads.md）
+    pevenIsolation(),
     VitePWA({
       // 新しい版は利用者が「更新」を押したときに切り替える（抽出中に勝手に再読み込みしない。UpdatePrompt 参照）
       registerType: 'prompt',
@@ -77,6 +79,8 @@ export default defineConfig({
       },
       workbox: {
         inlineWorkboxRuntime: true,
+        // ページの応答に COOP/COEP を足す（pevenIsolation）
+        importScripts: [ISOLATION_SCRIPT],
         // 更新で切り替わったときに、名前の違う古い版のキャッシュを消す
         cleanupOutdatedCaches: true,
         // dsp.wasm もオフラインで使えるようにキャッシュする

@@ -8,8 +8,13 @@
 ### Spleeter の fp16 版は WebGPU で動かさない
 ONNX Runtime Web 1.30 の WebGPU で fp16 版を動かすと、エラーにならずに出力がすべて 0 になった。入力は正しく渡っていた。int8 版・fp32 版は WebGPU でも正しく抽出できたので、fp16 版のときだけ WASM で動かす (2026-10-01)。
 
-### WASM のスレッド数は 1 にする
-マルチスレッドには COOP/COEP ヘッダーが要り、GitHub Pages などの静的ホスティングでは設定できない。どこでも動くことを優先し、`numThreads` は 1 に固定している。
+### WASM のマルチスレッドは、Service Worker でヘッダーを付けて使う
+マルチスレッドには cross-origin isolation（COOP/COEP のヘッダー）が要り、GitHub Pages ではヘッダーを付けられない。そこで Service Worker が、ページの応答に `Cross-Origin-Opener-Policy: same-origin` と `Cross-Origin-Embedder-Policy: credentialless` を足す（PevenMUI の `pevenIsolation`。`workbox.importScripts` で読む）。`credentialless` にしたのは、ほかのサイトのもの（モデルのダウンロード）を CORP のヘッダーなしで読めるようにするため (2026-10-09)。
+
+- 初めて開いた回は Service Worker がまだページを受け持たないので isolation にならず、1 スレッドで動く（勝手に再読み込みはしない）
+- Safari は `credentialless` に未対応なので isolation にならず、1 スレッドのまま
+- スレッドの数は `createExtractor` の `threads`（0 は自動）。自動は 4 と（コアの数 − 1）の小さい方で、iOS は 1（下の「推論の Worker は続けて使う間は止めない」の共有メモリの枠のため）。isolation でなければ何を指定しても 1（`src/threads.ts`）
+- 測った値（開発 PC の Chrome、Voc_FT の 1 区間）: 1 スレッド 47.4 秒、2 で 30.9 秒、4 で 24.9 秒、8 で 19.6 秒。4 で約 1.9 倍
 
 ### ONNX Runtime のメモリの上限は 1GB にする
 WebKit は共有メモリの上限の分を、作った時点でプロセス全体の予約の枠（iOS で約 6GB）から差し引く。ONNX Runtime は上限 4GB で作るので、iOS では枠がすぐに尽きる。ビルド時に、Worker が渡す上限を使うよう書き換え（`ortMemory.ts`。書き換える場所が見つからなければビルドを止める）、既定は 1GB にする。設定の「開発者向け」→「抽出のメモリの上限」で変えられる（変えると Worker を作り直す） (2026-10-03)。

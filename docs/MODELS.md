@@ -120,7 +120,7 @@ Demucs はコードも学習済みの重みも MIT（[facebookresearch/demucs](h
 | 曲の長さに対する時間（区切りは 5.85 秒ずつ進む） | 約 6 倍 | 約 2.7 倍（24 秒の曲で 65 秒） |
 | メモリ（プロセス全体） | 1.2GB | 1.3GB |
 
-GitHub Pages では COOP/COEP が無くマルチスレッドを使えないので、CPU では 1 スレッド（3 分の曲で約 18 分）。WebGPU の速さは未確認。
+GitHub Pages でも Service Worker がヘッダーを付けるので、2 回目に開いたときからマルチスレッドで動く（docs/DECISIONS.md。Safari と初回は 1 スレッドで、3 分の曲で約 18 分）。WebGPU の速さは未確認。
 曲全体（24 秒）を分けて 4 つの音を足すと、元の音との差は -31.8dB だった。
 
 ## 今後の候補

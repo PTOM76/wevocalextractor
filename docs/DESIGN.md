@@ -83,14 +83,13 @@ ex.dispose() // Worker を止める（モデルのメモリも解放される）
 | 実行方法 | 扱い |
 | --- | --- |
 | WebGPU | 使用できる環境で、モデルが対応していれば使う（どちらを使うかは使う側が決める） |
-| WASM（マルチスレッド） | 当面は使わない。COOP/COEP ヘッダーが要り、GitHub Pages などでは設定できない |
-| WASM（シングルスレッド） | どこでも動く。動作保証の最低線 |
+| WASM（マルチスレッド） | cross-origin isolation のときに使う（Service Worker がヘッダーを付ける。docs/DECISIONS.md） |
+| WASM（シングルスレッド） | どこでも動く。動作保証の最低線。初めて開いた回と Safari はこちら |
 
-`numThreads` は 1 に固定している。
+スレッドの数は `createExtractor` の `threads`（0 は自動。`src/threads.ts`）。
 
 ## 今後
 - `separate` に `AbortSignal` を渡せるようにする（今は `dispose` で中断する）
 - Rust に移した STFT の速さを測る（JS のときは処理時間の約4割を占めていた）
 - ツールでの読み込み・WAV の書き出しを wevocal-lib の TypeScript 側に移し、WeVocalSynth と共通にする
 - ツールのオフライン利用（PWA）
-- WASM のマルチスレッドを使うか

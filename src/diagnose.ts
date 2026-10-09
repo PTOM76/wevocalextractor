@@ -3,6 +3,7 @@
  * iOS で実行環境を作ると RangeError: Out of memory になる原因を、1 回の実行で切り分けるためのもの。
  * 結果は日本語の 1 行ずつで `log` に渡す（不具合の報告に貼る）
  */
+import { resolveThreads } from './threads'
 export type Log = (line: string) => void
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -60,12 +61,13 @@ const COMPILE_TEST = `onmessage = async (e) => {
   catch (err) { postMessage('失敗 (' + err + ')') }
 }`
 
-/** 環境 */
-export function diagnoseEnv(log: Log) {
+/** 環境。`threads` は設定のスレッドの数（0 は自動） */
+export function diagnoseEnv(log: Log, threads = 0) {
   const nav = navigator as Navigator & { standalone?: boolean; deviceMemory?: number; gpu?: unknown }
   log(`ブラウザ: ${navigator.userAgent}`)
   log(`PWA として開いている: ${window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true}`)
   log(`crossOriginIsolated: ${String(window.crossOriginIsolated)} / SharedArrayBuffer: ${typeof SharedArrayBuffer} / WebGPU: ${'gpu' in nav}`)
+  log(`CPU で使用するスレッド: ${resolveThreads(threads)}（設定: ${threads || '自動'}。isolation でなければ 1）`)
   log(`論理コア: ${navigator.hardwareConcurrency}${nav.deviceMemory ? ` / deviceMemory: ${nav.deviceMemory}GB` : ''}`)
   const perf = performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
   if (perf.memory) log(`JS ヒープ: ${(perf.memory.usedJSHeapSize / 2 ** 20).toFixed(0)}MB / ${(perf.memory.jsHeapSizeLimit / 2 ** 20).toFixed(0)}MB`)
