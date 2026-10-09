@@ -20,6 +20,8 @@ export interface ExtractorOptions {
   backend: Backend
   /** ONNX Runtime の wasm のメモリの上限（MB）。既定は `DEFAULT_MEMORY_MB`。変えると推論の Worker を作り直す */
   memoryMb?: number
+  /** CPU（wasm）で使うスレッドの数。0 は自動（`resolveThreads`）。変えると推論の Worker を作り直す */
+  threads?: number
   /** 手放してから推論の Worker を止めるまでの時間（ミリ秒）。既定は `IDLE_MS`。0 ならすぐ止めてメモリを返す（メモリの少ない端末向け） */
   keepAliveMs?: number
   /**
@@ -80,7 +82,7 @@ async function convert(channels: Float32Array[], from: number, to: number, outCh
 }
 
 type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void; onProgress?: (p: number) => void }
-type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; runtime: Runtime; idle: number; onLost?: (message: string) => void }
+type Shared = { worker: Worker; pending: Map<number, Pending>; nextId: number; owner: object | null; memoryMb: number; threads: number; runtime: Runtime; idle: number; onLost?: (message: string) => void }
 
 /** 使い終わってから推論の Worker を止めるまでの時間（ミリ秒）の既定。続けて使うときは作り直さない */
 export const IDLE_MS = 30_000
@@ -101,15 +103,26 @@ function drop(s: Shared, reason: Error) {
   if (shared === s) shared = null
 }
 
-function sharedWorker(memoryMb: number, runtime: Runtime) {
-  // メモリの上限と、読み込む ONNX Runtime（WebGPU 対応版か WASM 版か。worker.ts）は Worker で最初に準備したときに決まるので、変えたら作り直す。
-  if (shared && (shared.memoryMb !== memoryMb || shared.runtime !== runtime)) drop(shared, new DOMException('disposed', 'AbortError'))
+/**
+ * CPU（wasm）で使うスレッドの数。cross-origin isolation でなければ（SharedArrayBuffer が無ければ）1。
+ * 0（自動）は 4 と（コアの数 − 1）の小さい方で、iOS は 1（共有メモリの枠が少ない。docs/DECISIONS.md）
+ */
+export function resolveThreads(threads = 0): number {
+  if (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated) return 1
+  if (threads > 0) return threads
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+  return ios ? 1 : Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 1) - 1))
+}
+
+function sharedWorker(memoryMb: number, threads: number, runtime: Runtime) {
+  // メモリの上限、スレッドの数、読み込む ONNX Runtime（WebGPU 対応版か WASM 版か。worker.ts）は Worker で最初に準備したときに決まるので、変えたら作り直す。
+  if (shared && (shared.memoryMb !== memoryMb || shared.threads !== threads || shared.runtime !== runtime)) drop(shared, new DOMException('disposed', 'AbortError'))
   if (shared) {
     clearTimeout(shared.idle)
     return shared
   }
   const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-  const s: Shared = { worker, pending: new Map(), nextId: 1, owner: null, memoryMb, runtime, idle: 0 }
+  const s: Shared = { worker, pending: new Map(), nextId: 1, owner: null, memoryMb, threads, runtime, idle: 0 }
   worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
     if ('deviceLost' in e.data) return s.onLost?.(e.data.deviceLost)
     const p = s.pending.get(e.data.id)
@@ -141,7 +154,8 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
   // Demucs は既定の上限では足りないので、少なくとも DEMUCS_MEMORY_MB にする
   const memoryMb = Math.max(opts.memoryMb ?? DEFAULT_MEMORY_MB, model.kind === 'demucs' ? DEMUCS_MEMORY_MB : 0)
   const runtime = opts.runtime ?? (opts.backend === 'webgpu' ? 'gpu' : 'cpu')
-  const s = sharedWorker(memoryMb, runtime)
+  const threads = resolveThreads(opts.threads)
+  const s = sharedWorker(memoryMb, threads, runtime)
   /** この実行環境が送った要求の id */
   const mine = new Set<number>()
   let disposed = false
@@ -161,7 +175,7 @@ export async function createExtractor(opts: ExtractorOptions): Promise<Extractor
   // モデルは Worker に移すので、呼び出し元の ArrayBuffer は使えなくなる
   try {
     await send(
-      { kind: 'init', id: s.nextId++, model, backend: opts.backend, memoryMb, runtime, wasmUrl: opts.wasmUrl, askFallback: !!opts.onGpuFallback },
+      { kind: 'init', id: s.nextId++, model, backend: opts.backend, memoryMb, threads, runtime, wasmUrl: opts.wasmUrl, askFallback: !!opts.onGpuFallback },
       model.kind === 'spleeter' ? [model.vocals, model.accompaniment] : [model.model],
     )
   } catch (e) {

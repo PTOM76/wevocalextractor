@@ -59,17 +59,17 @@ async function loadDsp(): Promise<DspExports> {
   return instance.exports as unknown as DspExports
 }
 
-async function init(m: ModelData, backend: Backend, memoryMb: number, runtime: Runtime, wasmUrl?: string, ask = false) {
+async function init(m: ModelData, backend: Backend, memoryMb: number, threads: number, runtime: Runtime, wasmUrl?: string, ask = false) {
   askFallback = ask
   // ONNX Runtime の wasm のメモリの上限（ortMemory.ts が書き換えた所で読む。最初の準備のときだけ効く）
   ;(globalThis as { __ortMaxPages?: number }).__ortMaxPages = Math.round(memoryMb * 16)
-  // COOP/COEP の無い環境（GitHub Pages）ではマルチスレッドを使えないので 1 にする
   if (!ort) {
     ort = runtime === 'gpu' ? await import('onnxruntime-web') : await import('onnxruntime-web/wasm')
     // 追加機能として配るときは、wasm を別の追加機能に置くので場所を受け取る
     if (wasmUrl) ort.env.wasm.wasmPaths = { wasm: wasmUrl }
   }
-  ort.env.wasm.numThreads = 1
+  // マルチスレッドは cross-origin isolation のときだけ（index.ts の resolveThreads。そうでなければ 1）。最初の準備のときだけ効く
+  ort.env.wasm.numThreads = threads
   dsp ??= await loadDsp()
   await release()
   model = m
@@ -264,7 +264,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   queue = queue.then(async () => {
     try {
       if (req.kind === 'init') {
-        await init(req.model, req.backend, req.memoryMb, req.runtime, req.wasmUrl, req.askFallback)
+        await init(req.model, req.backend, req.memoryMb, req.threads, req.runtime, req.wasmUrl, req.askFallback)
         post({ id: req.id, ok: true })
       } else if (req.kind === 'useCpu') {
         await createSessions('wasm')
