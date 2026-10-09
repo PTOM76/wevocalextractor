@@ -93,6 +93,17 @@ export default defineConfig({
     emptyOutDir: true,
     // wasm（dsp.wasm・ONNX Runtime）を JS に埋め込まない
     assetsInlineLimit: 0,
+    rolldownOptions: {
+      output: {
+        // 版ごとにほとんど変わらないライブラリを別のファイルにし、更新のときにアプリの部分だけ取り直せばよいようにする
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\/](react|react-dom|scheduler)[\/]/, priority: 2 },
+            { name: 'mui', test: /node_modules[\/](@mui|@emotion|@popperjs|stylis)/, priority: 1 },
+          ],
+        },
+      },
+    },
   },
   // ONNX Runtime のメモリの上限を下げる（推論は Worker の中なので Worker のビルドに入れる）
   worker: { format: 'es', plugins: () => [ortMemory()] },
