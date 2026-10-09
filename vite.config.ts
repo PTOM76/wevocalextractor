@@ -77,6 +77,8 @@ export default defineConfig({
       },
       workbox: {
         inlineWorkboxRuntime: true,
+        // 更新で切り替わったときに、名前の違う古い版のキャッシュを消す
+        cleanupOutdatedCaches: true,
         // ONNX Runtime の wasm（約 28MB）もオフラインで使えるようにキャッシュする
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
