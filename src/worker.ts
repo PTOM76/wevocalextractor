@@ -14,6 +14,8 @@ const HOP = 1024
 const BINS = N_FFT / 2 + 1
 /** モデルに1回で渡すフレーム数（モデルの入力の形で決まっている） */
 const SPLIT = 512
+/** GPU で MDX-Net の区間を 1 回の推論にまとめる数 */
+const MDX_GPU_BATCH = 2
 /** モデルが扱う周波数ビンの数（約 11kHz まで。dsp/src/lib.rs の MODEL_BINS） */
 const MODEL_BINS = 1024
 
@@ -170,14 +172,16 @@ async function separate(id: number, ch: Float32Array[], stems: Stem[], highBand:
   }
   if (loaded.kind === 'mdx') {
     const { params } = loaded
-    const infer = (x: Float32Array, check: boolean) =>
+    const infer = (x: Float32Array, batch: number, check: boolean) =>
       guarded(async () => {
         const s = loaded
         if (s?.kind !== 'mdx') throw new Error('not initialized')
-        const out = await s.session.run({ input: new ort.Tensor('float32', x, [1, 4, params.dimF, params.dimT]) })
+        const out = await s.session.run({ input: new ort.Tensor('float32', x, [batch, 4, params.dimF, params.dimT]) })
         return [out.output.data as Float32Array]
       }, check).then(([y]) => y)
-    const result = await separateMdx(dsp, ch, stems, params, infer, needsCheck, (p) => post({ id, progress: p }))
+    // GPU では区間をまとめて推論する（CPU ではまとめても速くならない。docs/MODELS.md）
+    const batch = current === 'webgpu' ? MDX_GPU_BATCH : 1
+    const result = await separateMdx(dsp, ch, stems, params, infer, needsCheck, (p) => post({ id, progress: p }), batch)
     post({ id, stems: result }, result.flat().map((c) => c.buffer))
     return
   }

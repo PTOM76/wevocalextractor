@@ -78,6 +78,12 @@ sherpa-onnx の実装（`offline-source-separation-uvr-impl.h`、`scripts/uvr_md
 | Inst_HQ_4 | 2.1 秒（RTF 0.43） | — |
 
 CPU では曲の長さの約 10 倍かかるので、画面で知らせる（GPU を使わない設定や、WebGPU の無いブラウザ）。WebGPU の出力は CPU と同じで、0 になる問題は無かった。
+
+速くする工夫（2026-10-09）:
+- GPU が区間を推論している間に、前の区間の逆 STFT と次の区間の STFT を進める（[src/mdx.ts](../src/mdx.ts)）。CPU では推論も同じスレッドなので変わらない
+- 入力の 1 つ目の次元（`batch_size`）は可変で、区間をまとめて推論できる。GPU では 2 区間ずつまとめる（`MDX_GPU_BATCH`）。CPU（Node、1 スレッド、Voc_FT）ではまとめても速くならなかった（1 区間 51 秒、2 区間 114 秒）ので、1 区間ずつのまま
+- 並べ替えとまとめても、出力は 1 区間ずつと同じ（差 0）
+- 👤 WebGPU での速さは未測定
 ## Demucs（2026-10-08 に追加）
 Demucs v4（htdemucs、Meta）を ONNX にしたもの（[adowu/htdemucs-onnx](https://huggingface.co/adowu/htdemucs-onnx)、[adowu/htdemucs-6s-onnx](https://huggingface.co/adowu/htdemucs-6s-onnx)）。曲を楽器ごとに分ける。重みを fp16 で持つ版を使う（モデルごとの値は [src/demucsModels.ts](../src/demucsModels.ts)）。
 
