@@ -1,8 +1,10 @@
-import type { ExtractorOptions, Stem } from '../src/index'
+import type { Backend, ExtractorOptions, Stem } from '../src/index'
 import { MDX_MODELS, type MdxModelId } from '../src/mdxModels'
 import { t, type MessageKey } from './i18n'
 import { effectiveModel } from '../src/compat'
 import { app } from './appConfig'
+import gpuWasm from 'onnxruntime-web/ort-wasm-simd-threaded.jsep.wasm?url'
+import cpuWasm from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
 
 /**
  * モデルの種類（docs/MODELS.md）。ファイルは scripts/fetch-models.mjs が public/models/<種類>/ に置く。
@@ -101,6 +103,17 @@ export async function loadModels(kind: ModelKind, onProgress: (p: number) => voi
   ])
   return { options: () => ({ vocals: vocals.slice(0), accompaniment: accompaniment.slice(0) }) }
 }
+/**
+ * ONNX Runtime の wasm（WebGPU 対応版 28MB、WASM 版 14MB）を、モデルと同じ保存先から取り出す（なければ取得して保存する）。
+ * 両方をオフライン用キャッシュに入れず、使う方だけを保存するため。Worker に渡す URL を返し、使い終えたら `release` で手放す
+ */
+export async function loadRuntime(backend: Backend, signal: AbortSignal): Promise<{ wasmUrl: string; release: () => void }> {
+  const url = new URL(backend === 'webgpu' ? gpuWasm : cpuWasm, location.href).href
+  const buf = await download(url, () => {}, signal)
+  const wasmUrl = URL.createObjectURL(new Blob([buf], { type: 'application/wasm' }))
+  return { wasmUrl, release: () => URL.revokeObjectURL(wasmUrl) }
+}
+
 /** 保存済みのモデルを消す */
 export async function clearModels() {
   if (cacheSupported()) await caches.delete(CACHE)

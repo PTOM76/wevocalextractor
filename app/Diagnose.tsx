@@ -4,7 +4,7 @@ import { useHighlighter } from 'pevenmui'
 import { createExtractor, extractorBusy, type Backend } from '../src/index'
 import { diagnoseEnv, diagnoseWebGpu, diagnoseMemory, diagnoseRuntime, webGpuAvailable, type RuntimePattern } from '../src/diagnose'
 import { useT } from './i18n'
-import { loadModels, MODELS, type ModelKind } from './models'
+import { loadModels, loadRuntime, MODELS, type ModelKind } from './models'
 
 /** 診断を行い、結果を1行ずつ `log` に渡す（内容は src/diagnose.ts。WeVocalSynth と同じ） */
 async function diagnose(memoryMb: number, log: (line: string) => void) {
@@ -25,7 +25,12 @@ async function diagnose(memoryMb: number, log: (line: string) => void) {
         label: `${kind}、${backend}`,
         create: async () => {
           const m = await get()
-          return createExtractor({ ...m.options(), backend, memoryMb })
+          const runtime = await loadRuntime(backend, new AbortController().signal)
+          try {
+            return await createExtractor({ ...m.options(), backend, memoryMb, wasmUrl: runtime.wasmUrl })
+          } finally {
+            runtime.release()
+          }
         },
       })
   }

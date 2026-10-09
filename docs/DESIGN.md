@@ -41,7 +41,7 @@ WeVocalExtractor の方針、構成、公開 API、処理の流れ、実行方�
 
 - 音声ファイルの読み込みと書き出し（WAV / MP3 / Opus）は [wevocal-lib](https://github.com/PTOM76/wevocal-lib) の TypeScript 側（`web/`、submodule。WeVocalSynth と共通）
 - 画面の部品は [PevenMUI](https://github.com/PTOM76/pevenmui)（MUI をもとにした UI 部品。WeVocalSynth と共通）。上部のバー・設定画面・このアプリについて・ショートカット一覧・更新の通知（`pevenmui/pwa`）もそこから使う
-- PWA（vite-plugin-pwa）。新しい版は「更新」を押したときに切り替える。画面と ONNX Runtime の wasm はオフライン用に保存し、モデルは `app/models.ts` が使った種類だけを保存する
+- PWA（vite-plugin-pwa）。新しい版は「更新」を押したときに切り替える。画面はオフライン用に保存し、モデルと ONNX Runtime の wasm（WebGPU 対応版 28MB、WASM 版 14MB）は `app/models.ts` が使ったものだけを保存する（Worker には `wasmUrl` で渡す）
 - モデルは毎回読み込み、終わったら Worker ごと解放する（推論中は数百MB使うため、スマホでメモリを持ち続けない）
 - 配信は GitHub Pages（`.github/workflows/deploy.yml`）。モデルもサイトと一緒に配る
 

@@ -79,11 +79,11 @@ export default defineConfig({
         inlineWorkboxRuntime: true,
         // 更新で切り替わったときに、名前の違う古い版のキャッシュを消す
         cleanupOutdatedCaches: true,
-        // ONNX Runtime の wasm（約 28MB）もオフラインで使えるようにキャッシュする
+        // dsp.wasm もオフラインで使えるようにキャッシュする
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,wasm}'],
-        maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
-        // モデルは全員に配らず、使った種類だけを app/models.ts が自分の保存先（Cache Storage）に入れる
-        globIgnores: ['models/**'],
+        // モデルと ONNX Runtime の wasm（WebGPU 対応版 28MB、WASM 版 14MB）は全員に配らず、
+        // 使ったものだけを app/models.ts が自分の保存先（Cache Storage）に入れる
+        globIgnores: ['models/**', 'assets/ort-wasm-*.wasm'],
         navigateFallbackDenylist: [/\/models\//],
       },
     }),

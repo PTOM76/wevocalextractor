@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useJobQueue, type JobItem } from 'pevenmui'
 import { createExtractor, type Backend, type Extractor } from '../src/index'
 import { EXPORT_EXT, MP3_SAMPLE_RATES, OPUS_SAMPLE_RATE, decodeFile, exportAudio, type Clip } from 'wevocal-lib'
-import { hasWebGpu, loadModels, resolveModel } from './models'
+import { hasWebGpu, loadModels, loadRuntime, resolveModel } from './models'
 import { backendAllowed } from '../src/compat'
 import type { Settings } from './settings'
 import { t } from './i18n'
@@ -45,8 +45,15 @@ export function useQueue(settings: Settings, confirmCpu: (reason: string) => Pro
     setPhase({ kind: 'init' })
     const useGpu = settings.gpu && backendAllowed(model, 'webgpu') && (await hasWebGpu())
     // モデルは Worker に移されるので、作り直すときのために複製を渡す
-    const make = (backend: Backend) =>
-      createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb, onGpuFallback: backend === 'webgpu' ? confirmCpu : undefined, onGpuDeviceLost: onGpuLost })
+    // ONNX Runtime の wasm は使う方だけを取得する（Worker が読み込み終えたら手放す）
+    const make = async (backend: Backend) => {
+      const runtime = await loadRuntime(backend, signal)
+      try {
+        return await createExtractor({ ...models.options(), backend, memoryMb: settings.memoryMb, wasmUrl: runtime.wasmUrl, onGpuFallback: backend === 'webgpu' ? confirmCpu : undefined, onGpuDeviceLost: onGpuLost })
+      } finally {
+        runtime.release()
+      }
+    }
     // GPU を使う設定で、ブラウザに WebGPU があるのに使えない（アダプターが取れない）ときも、黙って CPU にしない
     if (!useGpu && settings.gpu && 'gpu' in navigator && backendAllowed(model, 'webgpu') && !(await confirmCpu(t('error.noAdapter'))))
       throw new DOMException('cancelled', 'AbortError')
