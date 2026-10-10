@@ -270,3 +270,15 @@ export async function prepareExtract(
   if (!(await ui.ensure(addon, [plan.runtimeAddon]))) return null
   return { ...o, backend: plan.backend }
 }
+
+/** 楽器ごとに分けた音の並びと、トラックの名前の訳文のキー（{name} に元の名前が入る。モデルが出さない音は作らない） */
+export const STEM_ORDER = [
+  ['vocals', 'track.vocalsName'],
+  ['lead', 'track.leadName'],
+  ['harmony', 'track.harmonyName'],
+  ['drums', 'track.drumsName'],
+  ['bass', 'track.bassName'],
+  ['guitar', 'track.guitarName'],
+  ['piano', 'track.pianoName'],
+  ['other', 'track.otherName'],
+] as const satisfies readonly (readonly [keyof InstrumentStems, string])[]
