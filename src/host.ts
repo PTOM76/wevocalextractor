@@ -255,3 +255,18 @@ export const EXTRACTOR_ADDONS = [
   { id: 'demucs-4', name: 'addon.demucs4', shortName: 'addon.modelStems4', requires: ['vocal-extractor'] },
   { id: 'demucs-6', name: 'addon.demucs6', shortName: 'addon.modelStems6', requires: ['vocal-extractor'] },
 ] as const
+
+/**
+ * 計算の種類を決め、`addon`（モデル）とそれに要る実行環境を導入済みにしてから、抽出の設定を返す。やめたら null。
+ * GPU を使う設定で、ブラウザに WebGPU があるのに使えない（アダプターが取れない）ときは、黙って CPU にせず `confirmCpu` で尋ねる
+ */
+export async function prepareExtract(
+  o: ExtractOptions,
+  addon: string,
+  ui: { ensure: (id: string, also?: string[]) => Promise<boolean>; confirmCpu: ConfirmCpu; noAdapter: string },
+): Promise<ExtractOptions | null> {
+  const plan = await planBackend(o)
+  if (o.gpu && plan.backend === 'wasm' && 'gpu' in navigator && backendAllowed(o.stemModel ?? o.model, 'webgpu') && !(await ui.confirmCpu(ui.noAdapter))) return null
+  if (!(await ui.ensure(addon, [plan.runtimeAddon]))) return null
+  return { ...o, backend: plan.backend }
+}
