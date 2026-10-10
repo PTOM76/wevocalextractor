@@ -236,3 +236,22 @@ export function createHost(io: HostIO) {
     isExtracting: () => extracting,
   }
 }
+
+/**
+ * 追加機能の一覧（実行環境とモデル。PevenMUI の AddonInfo の形）。名前は訳文のキーで、アプリの訳文に同じキーを置く。
+ * 実行環境の wasm は、WebGPU で動かすなら gpu、CPU なら cpu を入れる（planBackend）
+ */
+export const EXTRACTOR_ADDONS = [
+  { id: 'vocal-extractor', name: 'addon.vocalExtractor' },
+  { id: 'vocal-extractor-gpu', name: 'addon.runtimeGpu', requires: ['vocal-extractor'], companion: true },
+  { id: 'vocal-extractor-cpu', name: 'addon.runtimeCpu', requires: ['vocal-extractor'], companion: true },
+  { id: 'spleeter-fp16', name: 'addon.spleeterFp16', shortName: 'addon.modelLight', requires: ['vocal-extractor'] },
+  { id: 'spleeter-int8', name: 'addon.spleeterInt8', shortName: 'addon.modelStandard', requires: ['vocal-extractor'] },
+  { id: 'spleeter-fp32', name: 'addon.spleeterFp32', shortName: 'addon.modelPrecise', requires: ['vocal-extractor'] },
+  { id: 'uvr-mdx-voc-ft', name: 'addon.uvrVocFt', shortName: 'addon.modelVocalHq', requires: ['vocal-extractor'] },
+  { id: 'uvr-mdx-inst-hq4', name: 'addon.uvrInstHq4', shortName: 'addon.modelInstHq', requires: ['vocal-extractor'] },
+  { id: 'uvr-mdx-kara2', name: 'addon.uvrKara2', shortName: 'addon.modelLead', requires: ['vocal-extractor'] },
+  // 楽器ごとに分ける（Demucs。モデルは 100MB を超えるので、分けて置いてある）
+  { id: 'demucs-4', name: 'addon.demucs4', shortName: 'addon.modelStems4', requires: ['vocal-extractor'] },
+  { id: 'demucs-6', name: 'addon.demucs6', shortName: 'addon.modelStems6', requires: ['vocal-extractor'] },
+] as const
