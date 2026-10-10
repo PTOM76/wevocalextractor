@@ -267,7 +267,7 @@ export default function App() {
             [t('about.version'), <span className="selectable">{APP_BUILD}</span>],
             [t('about.author'), app.author],
             [
-              'GitHub',
+              'ソースコード',
               <Link className="selectable" href={app.repository} target="_blank" rel="noopener noreferrer">
                 {app.repository.replace('https://', '')}
               </Link>,
