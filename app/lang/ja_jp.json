@@ -146,5 +146,7 @@
   "shortcuts.open": "ファイルを追加",
   "shortcuts.drop": "ドロップ",
   "shortcuts.dropDesc": "ファイルを追加",
-  "shortcuts.menu": "メニューバーに移る"
+  "shortcuts.menu": "メニューバーに移る",
+
+  "job.kind.update": "更新中"
 }

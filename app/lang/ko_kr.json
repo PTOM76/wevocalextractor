@@ -146,5 +146,7 @@
   "shortcuts.open": "파일 추가",
   "shortcuts.drop": "드롭",
   "shortcuts.dropDesc": "파일 추가",
-  "shortcuts.menu": "메뉴 바로 이동"
+  "shortcuts.menu": "메뉴 바로 이동",
+
+  "job.kind.update": "업데이트 중"
 }

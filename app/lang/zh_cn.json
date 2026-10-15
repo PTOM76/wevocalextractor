@@ -146,5 +146,7 @@
   "shortcuts.open": "添加文件",
   "shortcuts.drop": "拖放",
   "shortcuts.dropDesc": "添加文件",
-  "shortcuts.menu": "移到菜单栏"
+  "shortcuts.menu": "移到菜单栏",
+
+  "job.kind.update": "正在更新"
 }

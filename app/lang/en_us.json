@@ -146,5 +146,7 @@
   "shortcuts.open": "Add files",
   "shortcuts.drop": "Drop",
   "shortcuts.dropDesc": "Add files",
-  "shortcuts.menu": "Move to the menu bar"
+  "shortcuts.menu": "Move to the menu bar",
+
+  "job.kind.update": "Updating"
 }

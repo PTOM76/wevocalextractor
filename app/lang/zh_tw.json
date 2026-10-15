@@ -146,5 +146,7 @@
   "shortcuts.open": "新增檔案",
   "shortcuts.drop": "拖放",
   "shortcuts.dropDesc": "新增檔案",
-  "shortcuts.menu": "移到選單列"
+  "shortcuts.menu": "移到選單列",
+
+  "job.kind.update": "正在更新"
 }
